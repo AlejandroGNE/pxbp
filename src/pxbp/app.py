@@ -9,7 +9,7 @@ import threading
 import pandas as pd
 from bokeh.layouts import column, row
 from bokeh.models import (Button, ColumnDataSource, DataTable, Div, MultiChoice,
-                          Select, Spinner, TableColumn, TextAreaInput, TextInput)
+                          Select, Spinner, TabPanel, Tabs, TableColumn, TextAreaInput, TextInput)
 from bokeh.palettes import Category20
 from bokeh.plotting import figure
 
@@ -41,7 +41,7 @@ class PivotApp:
         self.max_rows = Spinner(title="Maximum rows across all solutions", low=1, high=1000000, step=10000, value=100000)
         self.window_days = Spinner(title="Cloud window days (0 = one request; requires both dates)", low=0, high=366, value=0)
         self.run_button = Button(label="Run query", button_type="primary")
-        self.explore_button = Button(label="Explore collection in first selected solution")
+        self.explore_button = Button(label="Explore collection")
         self.cancel_button = Button(label="Cancel", disabled=True)
         self.x = Select(title="X axis", value="start_date", options=AXES)
         self.series = Select(title="Series", value="scenario", options=SERIES)
@@ -49,7 +49,7 @@ class PivotApp:
         self.chart_type = Select(title="Chart", value="Line", options=["Line", "Bar"])
         self.filters = {name: MultiChoice(title=f"Filter {name} (empty = all)", options=[])
                         for name in ("scenario", "category_name", "object_name", "timeslice_name")}
-        self.chart = column()
+        self.chart = column(Div(text="Run a query to view its pivot."), sizing_mode="stretch_width")
         self.table_source = ColumnDataSource(data={"x": [], "series": [], "unit": [], "value": []})
         self.table = DataTable(source=self.table_source, columns=[TableColumn(field=c, title=c)
                                for c in ("x", "series", "unit", "value")], height=250, sizing_mode="stretch_width")
@@ -60,16 +60,32 @@ class PivotApp:
         self.run_button.on_click(self.run)
         self.explore_button.on_click(self.explore)
         self.cancel_button.on_click(self.cancel)
-        controls = column(Div(text="<h2>PLEXOS Bokeh Pivot</h2>"), self.source_choice,
+        for widget in [self.phase, self.period, self.date_from, self.date_to, self.aggregation, self.aggregate_type]:
+            widget.width = 195
+        for widget in [self.source_choice, self.collection, self.properties, self.timeslice,
+                       self.child, self.extra, self.max_rows, self.window_days]:
+            widget.width = 400
+        for widget in [self.x, self.series, self.operation, self.chart_type]:
+            widget.width = 195
+        for widget in self.filters.values():
+            widget.width = 195
+        controls = column(self.source_choice,
                           self.collection, self.properties, row(self.phase, self.period), self.timeslice,
                           self.child, row(self.date_from, self.date_to),
                           row(self.aggregation, self.aggregate_type), self.extra,
-                          self.max_rows, self.window_days, self.run_button, self.explore_button,
-                          self.cancel_button, width=480)
-        results = column(self.status, row(self.x, self.series, self.operation, self.chart_type),
-                         row(*self.filters.values()), self.pivot_note, self.chart, self.table,
-                         self.metadata, sizing_mode="stretch_width")
-        doc.add_root(row(controls, results, sizing_mode="stretch_width"))
+                          self.max_rows, self.window_days,
+                          Div(text="Explore checks the first selected solution. Blank optional filters select all reported choices."),
+                          width=410)
+        filters = list(self.filters.values())
+        results = column(row(self.x, self.series), row(self.operation, self.chart_type),
+                         row(*filters[:2]), row(*filters[2:]), self.pivot_note, self.chart, self.table,
+                         sizing_mode="stretch_width")
+        self.tabs = Tabs(tabs=[TabPanel(title="Query", child=controls),
+                              TabPanel(title="Pivot", child=results),
+                              TabPanel(title="Reported choices", child=self.metadata)], sizing_mode="stretch_width")
+        doc.add_root(column(Div(text="<h2>PLEXOS Bokeh Pivot</h2>"),
+                            row(self.run_button, self.explore_button, self.cancel_button), self.status,
+                            self.tabs, sizing_mode="stretch_width"))
         doc.title = "PLEXOS Bokeh Pivot"
         doc.add_periodic_callback(self.pump, 150)
         doc.on_session_destroyed(lambda context: self.cancel())
@@ -97,11 +113,12 @@ class PivotApp:
         query = {k: v for k, v in query.items() if v not in (None, "", [])}
         return Selection(query, max_rows=int(self.max_rows.value), window_days=int(self.window_days.value))
 
-    def start_job(self, work):
+    def start_job(self, work, kind="query"):
         if self.job is not None:
             return
         cancel, events = threading.Event(), queue.Queue(maxsize=4)
         self.job = (cancel, events)
+        self.job_kind = kind
         self.run_button.disabled = self.explore_button.disabled = True
         self.cancel_button.disabled = False
 
@@ -141,10 +158,11 @@ class PivotApp:
         self.frame = pd.DataFrame(columns=COLUMNS)
         self.query_count = 0
         self.metadata.text = ""
-        self.chart.children = []
+        self.chart.children = [Div(text="Waiting for query results…")]
         self.table_source.data = {"x": [], "series": [], "unit": [], "value": []}
         self.pivot_note.text = ""
         self.status.text = "Querying selected solutions…"
+        self.tabs.active = 1
 
         def work(cancel, emit):
             for batch in stream_query(sources, selection, cancel):
@@ -167,7 +185,7 @@ class PivotApp:
             info = reader_for(source, cancel, 180).explore(collection)
             emit("metadata", info)
 
-        self.start_job(work)
+        self.start_job(work, kind="explore")
 
     def cancel(self):
         if self.job:
@@ -191,9 +209,13 @@ class PivotApp:
                 changed = True
             elif kind == "metadata":
                 self.metadata.text = "<pre>" + html.escape(json.dumps(value, indent=2, default=str)) + "</pre>"
+                self.tabs.active = 2
             else:
-                prefix = "Complete" if kind == "done" else "Stopped; query results may be incomplete"
-                self.status.text = prefix + ": " + html.escape(str(value)) + f". {self.query_count:,} rows."
+                if kind == "done":
+                    self.status.text = (f"Complete. {self.query_count:,} result rows."
+                                        if self.job_kind == "query" else "Reported choices loaded.")
+                else:
+                    self.status.text = "Stopped: " + html.escape(str(value)) + ". Query results may be incomplete."
                 self.job = None
                 self.run_button.disabled = self.explore_button.disabled = False
                 self.cancel_button.disabled = True
@@ -215,7 +237,12 @@ class PivotApp:
         groups = list(chart_series(table, self.x.value, self.series.value))
         categorical = self.x.value != "start_date"
         kwargs = {"x_range": sorted({str(v) for v in table[self.x.value]})} if categorical else {"x_axis_type": "datetime"}
+        if not categorical and not table.empty and table[self.x.value].nunique() == 1:
+            stamp = table[self.x.value].iloc[0]
+            kwargs["x_range"] = (stamp - pd.Timedelta(days=1), stamp + pd.Timedelta(days=1))
         plot = figure(height=420, sizing_mode="stretch_width", tools="pan,wheel_zoom,box_zoom,reset,save", **kwargs)
+        if categorical:
+            plot.xaxis.major_label_orientation = 0.9
         plot.xaxis.axis_label = self.x.value
         plot.yaxis.axis_label = f"value ({self.operation.value})"
         colors = Category20[20]

@@ -29,12 +29,16 @@ class Source:
     path: str | None = None
 
     def __post_init__(self):
-        if not self.label.strip():
+        if not isinstance(self.label, str) or not self.label.strip():
             raise ValueError("Each source needs a nonempty scenario label")
         if bool(self.solution_id) == bool(self.path):
             raise ValueError("Each source needs exactly one of solution_id or path")
         if self.solution_id:
+            if not isinstance(self.solution_id, str):
+                raise ValueError("solution_id must be a UUID string")
             UUID(self.solution_id)
+        elif not isinstance(self.path, (str, Path)):
+            raise ValueError("path must name a converted solution folder")
 
     @property
     def kind(self):
@@ -55,25 +59,34 @@ class Selection:
     timeout: float = 180
 
     def __post_init__(self):
+        if not isinstance(self.query, dict) or any(not isinstance(key, str) for key in self.query):
+            raise ValueError("Selection must be a JSON object with named query fields")
         unknown = set(self.query) - QUERY_FIELDS
         if unknown:
             raise ValueError("Unknown query fields: " + ", ".join(sorted(unknown)))
         if not self.query.get("collection") or not self.query.get("properties"):
             raise ValueError("Choose a collection and at least one property")
-        if not 1 <= self.batch_size <= 100000 or not 1 <= self.max_rows <= 1000000:
+        if (not isinstance(self.batch_size, int) or not isinstance(self.max_rows, int)
+                or not 1 <= self.batch_size <= 100000 or not 1 <= self.max_rows <= 1000000):
             raise ValueError("batch_size must be 1–100000; max_rows must be 1–1000000")
-        if not math.isfinite(self.timeout) or self.timeout <= 0:
+        if not isinstance(self.timeout, (int, float)) or not math.isfinite(self.timeout) or self.timeout <= 0:
             raise ValueError("timeout must be a positive finite number")
-        if not 0 <= self.window_days <= 366:
+        if not isinstance(self.window_days, int) or not 0 <= self.window_days <= 366:
             raise ValueError("window_days must be 0–366")
         start = self.query.get("date_from")
         end = self.query.get("date_to")
+        if any(value is not None and not isinstance(value, str) for value in (start, end)):
+            raise ValueError("Date bounds must be ISO timestamp strings")
         if start:
             datetime.fromisoformat(start)
         if end:
             datetime.fromisoformat(end)
-        if start and end and datetime.fromisoformat(start) > datetime.fromisoformat(end):
-            raise ValueError("date_from must be no later than date_to")
+        if start and end:
+            first, last = datetime.fromisoformat(start), datetime.fromisoformat(end)
+            if (first.tzinfo is None) != (last.tzinfo is None):
+                raise ValueError("Use consistent timezone notation in date bounds")
+            if first > last:
+                raise ValueError("date_from must be no later than date_to")
         if self.window_days:
             if not start or not end:
                 raise ValueError("Windowed cloud queries need date_from and date_to")
@@ -97,11 +110,15 @@ def load_sources(path: str | Path) -> list[Source]:
     data = json.loads(config_path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict) or set(data) != {"sources"}:
         raise ValueError('Configuration must contain only a "sources" array')
+    if not isinstance(data["sources"], list):
+        raise ValueError('"sources" must be a JSON array')
     result = []
     for item in data["sources"]:
-        if set(item) not in ({"label", "solution_id"}, {"label", "path"}):
+        if not isinstance(item, dict) or set(item) not in ({"label", "solution_id"}, {"label", "path"}):
             raise ValueError("Sources need label and exactly one of solution_id or path")
         if "path" in item:
+            if not isinstance(item["path"], str) or not item["path"].strip():
+                raise ValueError("Source path must be a nonempty string")
             local = Path(item["path"]).expanduser()
             item["path"] = str((config_path.parent / local).resolve())
         result.append(Source(**item))
@@ -112,6 +129,8 @@ def load_sources(path: str | Path) -> list[Source]:
 
 def run_cli(command, cancel: threading.Event, timeout: float):
     """Use files for diagnostics so a full stderr pipe cannot deadlock the worker."""
+    if cancel.is_set():
+        raise Cancelled("Query cancelled")
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         process = subprocess.Popen(command, stdout=stdout, stderr=stderr)
         started = time.monotonic()
@@ -212,7 +231,7 @@ class CloudReader:
                 target = root / "result.csv"
                 run_cli([self.cloud.executable, "solution", "sql", "--solution-id",
                          self.source.solution_id, "--sql-file", str(root / "query.sql"),
-                         "--output-file", str(target), "--format", "csv", "--quiet"],
+                         "--output-file", str(target), "--format", "csv"],
                         self.cancel, self.timeout)
                 if not target.is_file():
                     raise RuntimeError("Cloud CLI did not produce a result file")

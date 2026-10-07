@@ -72,3 +72,14 @@ Validation does not imply full native PLEXOS API parity.
   scenario labels and source provenance.
 * The Cloud browser session completed the real seven-row query and rendered
   the pivot, confirming live WebSocket and document updates.
+* The documented pip installation resolved and built the exact reference
+  revision from GitHub successfully; `pip check` found no broken requirements.
+* The repository's 146 MB Copperplate Linear ZIP converted successfully with
+  the installed Cloud CLI. Direct local annual category Generation matched
+  all 20 native categories and values (relative tolerance 1e-9, absolute 1e-6).
+* Browser testing of that converted solution completed a 20-row local query.
+  Query/Pivot/Reported choices now use tabs to fit the Codex browser panel.
+  A single-date chart now uses a sensible date range rather than microseconds.
+* A synthetic two-scenario example can be generated and launched without
+  Cloud access or proprietary inputs. Its streaming CLI produced 192 rows
+  in four batches (50, 46, 50, 46), with no CSV intermediates.

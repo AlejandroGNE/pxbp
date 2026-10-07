@@ -53,7 +53,7 @@ Use the printed `localhost` URL: Bokeh's default WebSocket origin is
 `localhost:<port>`. Substituting `127.0.0.1` in the browser can load HTML but
 reject the WebSocket, leaving a blank page.
 
-1. Select the solutions to compare. Press **Explore collection** to inspect
+1. In the **Query** tab, select the solutions to compare. Press **Explore collection** to inspect
    reported phases, periods, properties, time slices, samples, models, bands,
    categories and object names in the first selected solution. Exploration
    is evidence for that solution only; others may report different choices.
@@ -67,10 +67,15 @@ reject the WebSocket, leaving a blank page.
    `2024-01-31` means midnight, not the entire last day. Use an explicit time
    such as `2024-01-31T23:59:59` when needed. Times follow solution timestamps;
    the app does not infer your solution's time zone.
-5. Run. Change pivot X, series, operation and filters without another Cloud
+5. Run. The app opens the **Pivot** tab. Change pivot X, series, operation and filters without another Cloud
    request. Run again after changing query choices to fetch a new result.
    Year/month/day/hour axes combine repeated dates; use `start_date` to keep
    complete chronology. Legend clicks hide/show individual series.
+
+Query, Pivot and Reported choices use separate tabs so the viewer fits a
+narrow browser panel. Run/Explore/Cancel and progress stay above the tabs.
+After restarting the server, reload the browser page to create a fresh
+Bokeh session; a reconnect using an old session token may show a blank page.
 
 Properties, units, phases, period types, time slices, samples, models and
 bands remain separate pivot groups. Scenario identity is retained even if

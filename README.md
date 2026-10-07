@@ -24,6 +24,16 @@ Use the **Explore collection** button to find reported choices, then **Run
 query**. Change pivot axes/series/filters without re-querying. See
 [changes](CHANGELOG.md) and [validation](docs/workflow-audit.md).
 
+Try a small synthetic two-scenario example without PLEXOS or Cloud access:
+
+```powershell
+.\.venv\Scripts\python.exe examples/create-demo.py
+.\.venv\Scripts\pxbp.exe --config work/demo-parquet/sources.json serve
+```
+
+Press **Run query** with the default choices, then try `category_name` as the
+series. The example generator refuses to overwrite an existing directory.
+
 ## Original ZIP → CSV → Pivot workflow
 
 Run commands from this repository root. Windows, an installed PLEXOS API,

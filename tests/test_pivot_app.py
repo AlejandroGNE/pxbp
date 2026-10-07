@@ -30,12 +30,16 @@ def test_pivot_keeps_units_properties_and_dates_separate():
 def test_bokeh_document_and_render():
     doc = Document()
     app = make_document(doc, [SOURCE])
+    assert app.tabs.active == 0
     app.frame = data()
     app.render()
     assert len(app.chart.children) == 1
     assert len(app.table_source.data["value"]) == 3
     doc.validate()
     doc.to_json()
+    app.frame = data().head(3)
+    app.render()
+    assert app.chart.children[0].x_range.end > app.chart.children[0].x_range.start
     app.chart_type.value = "Bar"
     app.x.value = "month"
     doc.validate()
