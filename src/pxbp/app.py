@@ -5,6 +5,7 @@ import html
 import json
 import queue
 import threading
+from datetime import timedelta
 
 import pandas as pd
 from bokeh.layouts import column, row
@@ -238,8 +239,8 @@ class PivotApp:
         categorical = self.x.value != "start_date"
         kwargs = {"x_range": sorted({str(v) for v in table[self.x.value]})} if categorical else {"x_axis_type": "datetime"}
         if not categorical and not table.empty and table[self.x.value].nunique() == 1:
-            stamp = table[self.x.value].iloc[0]
-            kwargs["x_range"] = (stamp - pd.Timedelta(days=1), stamp + pd.Timedelta(days=1))
+            stamp = pd.Timestamp(table[self.x.value].iloc[0]).to_pydatetime()
+            kwargs["x_range"] = (stamp - timedelta(days=1), stamp + timedelta(days=1))
         plot = figure(height=420, sizing_mode="stretch_width", tools="pan,wheel_zoom,box_zoom,reset,save", **kwargs)
         if categorical:
             plot.xaxis.major_label_orientation = 0.9
