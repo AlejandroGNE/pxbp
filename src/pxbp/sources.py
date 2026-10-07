@@ -1,4 +1,4 @@
-"""Cloud query adapter; temporary CSV is the Cloud CLI transport, not an export workflow."""
+"""Cloud and local Parquet adapters sharing bounded, normalized result batches."""
 from __future__ import annotations
 
 import csv
@@ -8,13 +8,14 @@ import subprocess
 import tempfile
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
 from plexos_query.cloud_cli import CloudSolution
+from plexos_query import Solution
 
 
 class Cancelled(RuntimeError):
@@ -24,12 +25,20 @@ class Cancelled(RuntimeError):
 @dataclass(frozen=True)
 class Source:
     label: str
-    solution_id: str
+    solution_id: str | None = None
+    path: str | None = None
 
     def __post_init__(self):
         if not self.label.strip():
             raise ValueError("Each source needs a nonempty scenario label")
-        UUID(self.solution_id)
+        if bool(self.solution_id) == bool(self.path):
+            raise ValueError("Each source needs exactly one of solution_id or path")
+        if self.solution_id:
+            UUID(self.solution_id)
+
+    @property
+    def kind(self):
+        return "cloud" if self.solution_id else "parquet"
 
 
 QUERY_FIELDS = {"collection", "properties", "phase", "period", "parent", "child",
@@ -84,13 +93,17 @@ class Selection:
 
 
 def load_sources(path: str | Path) -> list[Source]:
-    data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    config_path = Path(path).expanduser().resolve()
+    data = json.loads(config_path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict) or set(data) != {"sources"}:
         raise ValueError('Configuration must contain only a "sources" array')
     result = []
     for item in data["sources"]:
-        if set(item) != {"label", "solution_id"}:
-            raise ValueError("Cloud sources need label and solution_id")
+        if set(item) not in ({"label", "solution_id"}, {"label", "path"}):
+            raise ValueError("Sources need label and exactly one of solution_id or path")
+        if "path" in item:
+            local = Path(item["path"]).expanduser()
+            item["path"] = str((config_path.parent / local).resolve())
         result.append(Source(**item))
     if not result or len({s.label for s in result}) != len(result):
         raise ValueError("Use at least one source and unique scenario labels")
@@ -137,7 +150,7 @@ class ManagedCloud(CloudSolution):
             raise RuntimeError("Cloud CLI returned invalid JSON metadata") from exc
 
 
-COLUMNS = ["scenario", "solution_id", "collection_name", "class_name", "property_name",
+COLUMNS = ["scenario", "solution_id", "source_path", "source_kind", "collection_name", "class_name", "property_name",
            "phase_name", "period_type_name", "object_name", "category_name", "unit",
            "timeslice_name", "sample_name", "model_name", "band_id", "start_date", "end_date", "value"]
 
@@ -149,7 +162,9 @@ def normalize(rows, source):
     if not {"start_date", "value"}.issubset(frame.columns):
         raise ValueError("Query result must include start_date and value")
     frame["scenario"] = source.label
-    frame["solution_id"] = source.solution_id
+    frame["solution_id"] = source.solution_id or ""
+    frame["source_path"] = source.path or ""
+    frame["source_kind"] = source.kind
     for name in COLUMNS:
         if name not in frame:
             frame[name] = ""
@@ -220,11 +235,75 @@ class CloudReader:
                         yield normalize(batch, self.source)
 
 
+class LocalReader:
+    """Use the pinned pxq SQL builder and DuckDB fetchmany; no CSV is created."""
+    def __init__(self, source, cancel, timeout):
+        self.source, self.cancel, self.timeout = source, cancel, timeout
+
+    def explore(self, collection):
+        if self.cancel.is_set():
+            raise Cancelled("Query cancelled")
+        with Solution(self.source.path) as solution:
+            return solution.explore(collection=collection)
+
+    def rows(self, selection, remaining):
+        if self.cancel.is_set():
+            raise Cancelled("Query cancelled")
+        with Solution(self.source.path) as solution:
+            con = solution._ready()
+            done, timed_out = threading.Event(), threading.Event()
+
+            def watch():
+                started = time.monotonic()
+                while not done.wait(0.05):
+                    if self.cancel.is_set():
+                        con.interrupt()
+                        return
+                    if time.monotonic() - started > self.timeout:
+                        timed_out.set()
+                        con.interrupt()
+                        return
+
+            monitor = threading.Thread(target=watch, daemon=True, name="pxbp-duckdb-cancel")
+            monitor.start()
+            try:
+                # This dependency-private boundary is pinned and covered by adapter/parity tests.
+                sql, params = solution._query_sql(**selection.query)
+                sql = sql.removesuffix(" ORDER BY p.StartDate, f.SeriesId")
+                result = con.execute(f"SELECT * FROM ({sql}) q LIMIT ?", params + [remaining + 1])
+                names = [column[0] for column in result.description]
+                while True:
+                    if self.cancel.is_set():
+                        raise Cancelled("Query cancelled")
+                    if timed_out.is_set():
+                        raise TimeoutError(f"Local query exceeded {self.timeout:g} seconds")
+                    rows = result.fetchmany(min(selection.batch_size, remaining + 1))
+                    if not rows:
+                        break
+                    if len(rows) > remaining:
+                        raise ValueError("Row limit exceeded; narrow the query or increase max_rows. Results are incomplete")
+                    remaining -= len(rows)
+                    yield normalize([dict(zip(names, row)) for row in rows], self.source)
+            except Exception as exc:
+                if self.cancel.is_set():
+                    raise Cancelled("Query cancelled") from exc
+                if timed_out.is_set():
+                    raise TimeoutError(f"Local query exceeded {self.timeout:g} seconds") from exc
+                raise
+            finally:
+                done.set()
+                monitor.join()
+
+
+def reader_for(source, cancel, timeout):
+    return CloudReader(source, cancel, timeout) if source.kind == "cloud" else LocalReader(source, cancel, timeout)
+
+
 def stream_query(sources, selection, cancel=None):
     cancel = cancel or threading.Event()
     remaining = selection.max_rows
     for source in sources:
-        reader = CloudReader(source, cancel, selection.timeout)
+        reader = reader_for(source, cancel, selection.timeout)
         for frame in reader.rows(selection, remaining):
             remaining -= len(frame)
             yield Batch(source, frame)

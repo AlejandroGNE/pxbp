@@ -1,5 +1,13 @@
 # Changes
 
+## 0.3.0 — Local Parquet and mixed sources
+
+* Direct local PLEXOS Parquet queries with DuckDB batches and no CSV intermediates.
+* Multiple local scenarios and mixed Cloud/local sessions use the same selections and pivot.
+* Configuration paths resolve relative to the configuration file.
+* Local cancellation interrupts DuckDB, with timeout and schema validation.
+* Result batches retain source kind and local path as well as scenario/Cloud ID.
+
 ## 0.2.0 — Cloud pivot
 
 * Separate `pxbp` package and current Bokeh server application.

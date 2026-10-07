@@ -14,7 +14,7 @@ from bokeh.palettes import Category20
 from bokeh.plotting import figure
 
 from .pivot import AXES, SERIES, chart_series, pivot
-from .sources import COLUMNS, Cancelled, CloudReader, Selection, stream_query
+from .sources import COLUMNS, Cancelled, Selection, reader_for, stream_query
 
 
 class PivotApp:
@@ -164,7 +164,7 @@ class PivotApp:
         self.status.text = "Exploring reported choices…"
 
         def work(cancel, emit):
-            info = CloudReader(source, cancel, 180).explore(collection)
+            info = reader_for(source, cancel, 180).explore(collection)
             emit("metadata", info)
 
         self.start_job(work)

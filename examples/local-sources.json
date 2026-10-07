@@ -1,0 +1,6 @@
+{
+  "sources": [
+    {"label": "Baseline", "path": "../PlexosParquet/baseline"},
+    {"label": "Alternative", "path": "../PlexosParquet/alternative"}
+  ]
+}

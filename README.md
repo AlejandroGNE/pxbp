@@ -4,11 +4,25 @@ The original Windows workflow queries PLEXOS **solution ZIPs** with the native
 PLEXOS API, writes category totals to CSV, and opens the bundled Bokeh Pivot.
 An input model XML by itself is not a solved result.
 
-## On-demand cloud queries
+## Current version: on-demand Cloud and local Parquet queries
 
-The next version adds a separate current Bokeh application. Give it Cloud
-solution IDs, run selected queries, and compare/pivot results as batches
-arrive. Start with [the cloud pivot guide](docs/cloud-pivot.md).
+Version 0.3 adds a separate current Bokeh application. Give it Cloud
+solution IDs or converted local Parquet solution folders, run selected
+queries, and compare/pivot results as batches arrive. Local queries skip CSVs
+entirely. Start with [the cloud pivot guide](docs/cloud-pivot.md) or
+[direct local Parquet](docs/local-parquet.md). Sources can be mixed.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e '.[test]'
+.\.venv\Scripts\pxbp.exe --parquet 'C:\models\solution-parquet' serve
+# Cloud: replace the placeholder with a query-ready solution UUID.
+.\.venv\Scripts\pxbp.exe --solution-id <UUID> serve
+```
+
+Use the **Explore collection** button to find reported choices, then **Run
+query**. Change pivot axes/series/filters without re-querying. See
+[changes](CHANGELOG.md) and [validation](docs/workflow-audit.md).
 
 ## Original ZIP → CSV → Pivot workflow
 
@@ -86,7 +100,7 @@ these using your API's actual property enums before relying on this mode.
 
 The legacy hourly chart uses hour-of-day, not a complete timestamp. Select
 one year/month/day for hourly data, one year/month for daily data, and one
- year for monthly data, or split the chart by those dimensions to avoid
+year for monthly data, or split the chart by those dimensions to avoid
 combining different dates.
 
 See [the workflow audit](docs/workflow-audit.md) for discovered gaps and checks.

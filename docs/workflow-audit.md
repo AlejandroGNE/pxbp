@@ -57,3 +57,18 @@ Validation does not imply full native PLEXOS API parity.
 * Browser testing caught a blank page from a hostname mismatch: the initial
   launcher printed `127.0.0.1` while Bokeh allowed `localhost`. The launcher
   now prints the matching `localhost` URL, including when choosing port 0.
+
+## Local version validation
+
+* Fourteen tests passed, including actual DuckDB queries on generated PLEXOS
+  table fixtures, exact object names containing commas, aggregation, missing
+  schema, relative config paths and the JSON streaming CLI.
+* Local tests replace `QueryToCSV` and the Cloud subprocess runner with
+  failures: the local query still succeeds and creates no CSV files.
+* The real converted ERCOT solution returned the same seven Node Price rows
+  as Cloud, matching dates, values and all common normalized metadata. One
+  observed local run took 0.22 seconds; this is not a general benchmark.
+* A mixed session returned 14 rows: seven Cloud and seven local, with correct
+  scenario labels and source provenance.
+* The Cloud browser session completed the real seven-row query and rendered
+  the pivot, confirming live WebSocket and document updates.

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pxbp"
-version = "0.2.0"
-description = "On-demand PLEXOS Cloud queries and Bokeh pivots"
+version = "0.3.0"
+description = "On-demand PLEXOS Cloud and local Parquet queries with Bokeh pivots"
 requires-python = ">=3.10"
 dependencies = [
   "bokeh>=3.4,<4",

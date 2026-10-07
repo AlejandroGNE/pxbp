@@ -6,13 +6,14 @@ import json
 import sys
 from pathlib import Path
 
-from .sources import CloudReader, Selection, Source, load_sources, stream_query
+from .sources import Selection, Source, load_sources, reader_for, stream_query
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", help="JSON source configuration")
     parser.add_argument("--solution-id", action="append", default=[], help="Cloud solution UUID; repeat for comparisons")
+    parser.add_argument("--parquet", action="append", default=[], help="Converted local solution folder; repeat for comparisons")
     sub = parser.add_subparsers(dest="command", required=True)
     serve = sub.add_parser("serve")
     serve.add_argument("--port", type=int, default=5006)
@@ -27,12 +28,15 @@ def main(argv=None):
     query.add_argument("--timeout", type=float, default=180)
     args = parser.parse_args(argv)
     try:
-        if args.config and args.solution_id:
-            raise ValueError("Use --config or --solution-id, not both")
+        if args.config and (args.solution_id or args.parquet):
+            raise ValueError("Use --config or direct source options, not both")
         sources = load_sources(args.config) if args.config else [Source(f"Solution {i}", value)
                    for i, value in enumerate(args.solution_id, 1)]
+        if not args.config:
+            sources += [Source(f"Local {i}", path=str(Path(value).expanduser().resolve()))
+                        for i, value in enumerate(args.parquet, 1)]
         if not sources:
-            raise ValueError("Provide --config or at least one --solution-id")
+            raise ValueError("Provide --config, --solution-id or --parquet")
         if args.command == "query":
             selection = Selection(json.loads(Path(args.selection).read_text(encoding="utf-8-sig")),
                                   batch_size=args.batch_size, max_rows=args.max_rows,
@@ -42,7 +46,7 @@ def main(argv=None):
         elif args.command == "explore":
             import threading
             for source in sources:
-                info = CloudReader(source, threading.Event(), 180).explore(args.collection)
+                info = reader_for(source, threading.Event(), 180).explore(args.collection)
                 print(json.dumps({"scenario": source.label, "reported": info}, default=str))
         else:
             from bokeh.application import Application
