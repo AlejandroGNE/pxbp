@@ -11,3 +11,4 @@ __pycache__/
 .venv/
 work/
 sources.private.json
+PlexosParquet/
