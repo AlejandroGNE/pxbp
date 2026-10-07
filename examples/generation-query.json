@@ -1,0 +1,9 @@
+{
+  "collection": "SystemGenerators",
+  "properties": "Generation",
+  "phase": "STSchedule",
+  "period": "Interval",
+  "timeslice": "All Periods",
+  "aggregate_by": "category",
+  "aggregate_type": "SUM"
+}

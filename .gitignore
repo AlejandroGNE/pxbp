@@ -4,3 +4,10 @@ python_executable_path.txt
 PlexosOutputs/*
 runs/*
 PlexosSolutions/*
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+work/
+sources.private.json

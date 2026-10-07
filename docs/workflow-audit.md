@@ -37,3 +37,20 @@ Validation does not imply full native PLEXOS API parity.
   stating that solution data was being prepared. Resource completion and
   query readiness are separate; this is a service response, not a local
   installation failure.
+
+## Cloud version validation
+
+* Isolated legacy extraction → rename → append ran successfully against the
+  2023 Copperplate Linear solution, producing 20 `gen_ann.csv` rows with the
+  expected seven-column schema. Existing `runs` were not changed.
+* A previously validated ERCOT Cloud solution returned seven daily Node
+  Price rows for one exact node and All Periods. The new adapter delivered
+  batches of 3, 3 and 1. One observed run took 11.72 seconds including metadata.
+* Disjoint two-day Cloud windows returned exactly the same seven rows as
+  the single request, including start/end boundary timestamps.
+* Nine automated tests passed with Bokeh 3.10.0, pandas 2.3.3 and DuckDB 1.5.6:
+  batch/provenance handling, global row-budget failures, cancellation,
+  subprocess timeout/error cleanup, windows, config validation, pivot
+  identity and Bokeh document construction/rendering/worker completion.
+* Only selected Cloud CSV results are downloaded temporarily. This does not
+  establish that the service or CLI streams rows before completing a request.
