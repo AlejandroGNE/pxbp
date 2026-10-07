@@ -25,3 +25,15 @@ The audit follows the scripts and README and preserves existing uncommitted edit
 
 Further execution findings and new-version checks will be added as exercised.
 Validation does not imply full native PLEXOS API parity.
+
+## Additional discoveries
+
+* ReEDS scenario discovery requires `outputs/cap.csv`, not merely a folder
+  with result files. The working mapping selects property 212 while the
+  capacity rename rule expects 214. This can hide an otherwise populated run.
+* A read-only native Generator Generation/FiscalYear/category SUM query
+  against the existing 2023 Copperplate Linear solution returned 20 rows.
+* Recently completed Cloud Parquet resources returned an InternalServerError
+  stating that solution data was being prepared. Resource completion and
+  query readiness are separate; this is a service response, not a local
+  installation failure.

@@ -4,6 +4,12 @@ The original Windows workflow queries PLEXOS **solution ZIPs** with the native
 PLEXOS API, writes category totals to CSV, and opens the bundled Bokeh Pivot.
 An input model XML by itself is not a solved result.
 
+## On-demand cloud queries
+
+The next version adds a separate current Bokeh application. Give it Cloud
+solution IDs, run selected queries, and compare/pivot results as batches
+arrive. Start with [the cloud pivot guide](docs/cloud-pivot.md).
+
 ## Original ZIP → CSV → Pivot workflow
 
 Run commands from this repository root. Windows, an installed PLEXOS API,
@@ -71,6 +77,12 @@ press Enter to trigger the path callback. For an unregistered property file,
 use the CSV data type and point directly to that CSV; do not mix incompatible
 CSV schemas in a directory. Technology colors live in
 `X2BokehPivot/in/reeds2/tech_style.csv`.
+
+The ReEDS 2 viewer discovers a scenario only if `outputs/cap.csv` exists.
+If your configured capacity property is not renamed to `cap.csv`, the
+scenario is invisible in that mode. For example, the current working copy
+selects Generator property 212 while the rename table expects 214: reconcile
+these using your API's actual property enums before relying on this mode.
 
 The legacy hourly chart uses hour-of-day, not a complete timestamp. Select
 one year/month/day for hourly data, one year/month for daily data, and one
