@@ -1,21 +1,10 @@
 @echo off
-setlocal enabledelayedexpansion
-
-:: Set the Miniforge installation path
-set INSTALL_PATH=%LOCALAPPDATA%\Miniforge3
-
-:: Set the name of the conda environment
-set ENV_NAME=xml2csv
-
-:: Set the paths to your Python scripts
-set PYTHON_SCRIPT=mappings.py
-:: Activate Miniforge environment
-echo Activating Miniforge environment '%ENV_NAME%'...
-call "%INSTALL_PATH%\condabin\conda.bat" activate %ENV_NAME%
-
-echo Running Python script '%PYTHON_SCRIPT%'...
-python "%PYTHON_SCRIPT%"
-:: Deactivate the conda environment
-echo Deactivating the conda environment...
-call conda deactivate
-
+setlocal
+cd /d "%~dp0"
+set "PXBP_NATIVE=%~dp0.venv-native\Scripts\python.exe"
+if not exist "%PXBP_NATIVE%" (
+    echo Native environment missing. Run setup.bat native first.
+    exit /b 1
+)
+"%PXBP_NATIVE%" "%~dp0mappings.py"
+exit /b %errorlevel%

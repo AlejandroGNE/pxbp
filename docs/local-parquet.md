@@ -6,6 +6,9 @@ streams selected rows into memory, and uses the same Bokeh pivot as Cloud.
 PLEXOS native API installation, Cloud login, or the Cloud CLI. The adapter
 does not process a standalone arbitrary Parquet file as a solved solution.
 
+Install with `.\setup.bat modern`, then use `.\pxbp.bat` for the commands
+below. See [standard Python setup](python-environments.md) for prerequisites.
+
 ## Required solution layout
 
 Give the app a directory containing all three PLEXOS tables:

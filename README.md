@@ -6,6 +6,19 @@ An input model XML by itself is not a solved result.
 
 ## Current version: on-demand Cloud and local Parquet queries
 
+All supplied Windows launchers now use **standard CPython 3.12, `venv`, and
+pip**. Conda and Miniforge are not required. Install Python 3.12 from
+[python.org](https://www.python.org/downloads/windows/) first, then run:
+
+```powershell
+.\setup.bat all                 # Native extraction, classic viewer and modern pxbp
+.\setup.bat all --check         # Check existing environments without installing
+```
+
+For individual workflows use `setup.bat native`, `setup.bat viewer` or
+`setup.bat modern`. See [the no-Conda setup guide](docs/python-environments.md)
+for environment paths, interpreter selection, upgrades and troubleshooting.
+
 Version 0.3 adds a separate current Bokeh application. Give it Cloud
 solution IDs or converted local Parquet solution folders, run selected
 queries, and compare/pivot results as batches arrive. Local queries skip CSVs
@@ -42,11 +55,10 @@ Both `Plexos2BokehPivot.py` and `mappings.py` use the hardcoded API directory
 `C:/Program Files/Energy Exemplar/PLEXOS 10.0 API`; change it in both files
 if your installation differs. A Python environment alone does not install PLEXOS.
 
-1. Run `setup.bat`. It installs Miniforge under `%LOCALAPPDATA%/Miniforge3`
-   and creates `xml2csv` from `environment.yaml`. If the environment already
-   exists, use `conda env update -n xml2csv -f environment.yaml` instead of
-   recreating it. Check actual errors: the batch file can print success after
-   a failed environment creation.
+1. Run `.\setup.bat native` (or just `.\setup.bat`). It creates `.venv-native`
+   with standard Python 3.12 and installs `requirements-native.txt` using pip.
+   Repeat this command to repair/update its dependencies. Setup failures return
+   a nonzero exit code; setup checks imports before reporting success.
 2. Create `PlexosSolutions` if missing. Put solved `.zip` files **directly in
    that folder**, one ZIP per scenario. The script does not recurse into
    scenario subfolders. Keep each ZIP intact, including its `*Solution.xml`.
@@ -89,10 +101,12 @@ cd X2BokehPivot
 .\launch.bat
 ```
 
-This is a separate `bokehpivot` environment with older pinned versions in
-`X2BokehPivot/environment.yaml`. Run its launcher from **inside that folder**:
-it serves `.`. Its server picks a free port and opens a browser. Keep the
-terminal running; stop the server with Ctrl+C.
+This is a separate `X2BokehPivot/.venv` using standard Python 3.12 and the
+pip versions in `X2BokehPivot/requirements.txt`. It preserves the classic
+Bokeh 2.4 interface and ReEDS features. Launchers resolve their own directories,
+so `.\X2BokehPivot\launch.bat` also works from the repository root. Its server
+picks a free port and opens a browser. Keep the terminal running; stop with
+Ctrl+C. For automated checks use `launch.bat --no-browser --port 5018`.
 
 Select the appropriate data type and paste an absolute path to
 `runs/<period>` so its immediate scenario folders contain `outputs`. If the

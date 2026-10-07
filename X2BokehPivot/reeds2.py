@@ -17,7 +17,6 @@ import core
 import copy
 from pdb import set_trace as pdbst
 from itertools import product
-import ptvsd
 
 ##################   DEBUG CODE ##################
 #In order to use place a breakpoint in a line of code and in Visual Studio Code

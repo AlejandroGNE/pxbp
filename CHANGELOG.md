@@ -1,5 +1,13 @@
 # Changes
 
+## Unreleased — standard Python setup
+
+* Replace Conda/Miniforge batch setup and activation with CPython 3.12, venv and pip.
+* Keep separate native, classic Bokeh 2.4 and modern Bokeh 3 environments.
+* Launchers resolve absolute paths and propagate setup/process failures.
+* Classic report workers use the viewer interpreter with structured arguments.
+* Remove an unused debugger import and obsolete Conda environment YAML files.
+
 ## 0.3.0 — Local Parquet and mixed sources
 
 * Direct local PLEXOS Parquet queries with DuckDB batches and no CSV intermediates.

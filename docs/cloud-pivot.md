@@ -7,10 +7,18 @@ CSV directory is required. Existing ZIP/CSV tooling remains available.
 
 ## Install
 
-Use a fresh Python 3.10+ environment from the repository root:
+The Windows setup uses standard Python 3.12 and pip. From the repository root:
 
 ```powershell
-python -m venv .venv
+.\setup.bat modern
+.\pxbp.bat --help
+```
+
+See [Python environments](python-environments.md) for interpreter selection
+and the separate classic viewer environment. The equivalent manual setup is:
+
+```powershell
+py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e '.[test]'
 ```
 

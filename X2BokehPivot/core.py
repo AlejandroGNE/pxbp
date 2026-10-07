@@ -30,6 +30,7 @@ import six.moves.urllib.parse as urlp
 import subprocess as sp
 import jinja2 as ji
 import reeds_bokeh as rb
+from report_runner import launch_report
 import logging
 from pdb import set_trace as pdbst
 
@@ -480,22 +481,20 @@ def build_report(html_num='one'):
     Args:
         html_num (string): 'multiple' if we are building separate html reports for each section, and 'one' for one html report with all sections.
     '''
-    data_type = '"CSV"'
+    data_type = 'CSV'
     report_path = GL['widgets']['report_custom'].value
     report_path = report_path.replace('"', '')
-    report_path = '"' + report_path + '"'
-    report_format = '"' + GL['widgets']['report_format'].value + '"'
+    report_format = GL['widgets']['report_format'].value
     time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    output_dir = '"' + out_path + '/report-' + time + '"'
-    data_source = '"' + GL['widgets']['data'].value.replace('"', '') + '"'
+    output_dir = out_path + '/report-' + time
+    data_source = GL['widgets']['data'].value.replace('"', '')
     if html_num == 'one':
-        auto_open = '"yes"'
+        auto_open = 'yes'
     else:
-        auto_open = '"no"'
-    start_str = 'start python'
-    if GL['widgets']['report_debug'].value == 'Yes':
-        start_str = 'start cmd /K python -m pdb '
-    sp.call(start_str + ' "' + this_dir_path + '/reports/interface_report.py" ' + data_type + ' ' + data_source + ' ' + report_path + ' ' + report_format + ' "' + html_num + '" ' + output_dir + ' ' + auto_open, shell=True)
+        auto_open = 'no'
+    launch_report(this_dir_path + '/reports/interface_report.py',
+                  [data_type, data_source, report_path, report_format, html_num, output_dir, auto_open],
+                  output_dir=output_dir, debug=GL['widgets']['report_debug'].value == 'Yes')
 
 def build_report_separate():
     '''

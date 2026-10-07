@@ -83,3 +83,33 @@ Validation does not imply full native PLEXOS API parity.
 * A synthetic two-scenario example can be generated and launched without
   Cloud access or proprietary inputs. Its streaming CLI produced 192 rows
   in four batches (50, 46, 50, 46), with no CSV intermediates.
+
+## Standard Python migration (2026-10-07)
+
+The user confirmed IT whitelisting, then requested removing Conda. Setup now
+creates three independent environments from standard CPython 3.12: native
+extraction, the classic Bokeh 2 viewer and modern Bokeh 3 `pxbp`. The batch
+launchers call exact environment interpreters and resolve their own working
+directories. Both classic report builders also use the viewer interpreter,
+instead of launching `start python` through PATH.
+
+* Native extraction, rename and append passed again on the actual Copperplate
+  ZIP using `.venv-native`, returning the expected 20 annual Generation rows.
+* Classic imports passed with Bokeh 2.4.3, NumPy 1.26.4 and pandas 2.2.3.
+  An actual Bokeh server session rendered stacked generation for two synthetic
+  scenarios; the browser showed both charts and their technology legend.
+* A synthetic two-scenario, two-year ReEDS report produced six successful
+  sections: stacked capacity, stacked generation, generation fractions and
+  their differences from the base scenario. HTML, six CSV exports and an Excel
+  workbook with seven sheets were readable. Differences and fractions matched
+  the known inputs. The exact-interpreter background report worker passed too.
+* Sixteen automated tests passed, including rejection of Conda interpreters
+  and launching reports with no Python on PATH while preserving empty arguments,
+  spaces and shell metacharacters literally.
+* The classic code emits pandas future-deprecation warnings, but these checks
+  had no failed report sections. Its pandas major version remains below 3.
+  This verifies selected ReEDS operations, not every result/preset or mapping.
+
+See [standard Python environments](python-environments.md) for the updated
+setup, launch and report troubleshooting steps. The earlier legacy environment
+blocker is historical; selected classic features are now exercised successfully.

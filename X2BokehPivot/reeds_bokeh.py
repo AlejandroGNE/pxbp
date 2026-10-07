@@ -16,6 +16,7 @@ import reeds2 as rd2
 import core
 import datetime
 import subprocess as sp
+from report_runner import launch_report
 if sys.version_info[0] == 2:
     import gdx2py
 import logging
@@ -523,29 +524,27 @@ def build_reeds_report(html_num='one'):
     Args:
         html_num (string): 'multiple' if we are building separate html reports for each section, and 'one' for one html report with all sections.
     '''
-    data_type = '"' + GLDT + '"'
-    diff = '"' + core.GL['widgets']['report_diff'].value + '"'
-    base = '"' + core.GL['widgets']['report_base'].value + '"'
+    data_type = GLDT
+    diff = core.GL['widgets']['report_diff'].value
+    base = core.GL['widgets']['report_base'].value
     if core.GL['widgets']['report_options'].value == 'custom':
         report_path = core.GL['widgets']['report_custom'].value
         report_path = report_path.replace('"', '')
     else:
         report_path = this_dir_path + '/reports/templates'+GLRD['report_subdir']+'/'+ core.GL['widgets']['report_options'].value
-    report_path = '"' + report_path + '"'
-    report_format = '"' + core.GL['widgets']['report_format'].value + '"'
+    report_format = core.GL['widgets']['report_format'].value
     time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    output_dir = '"' + core.out_path + '/report-' + time + '"'
-    data_source = '"' + core.GL['widgets']['data'].value.replace('"', '') + '"'
+    output_dir = core.out_path + '/report-' + time
+    data_source = core.GL['widgets']['data'].value.replace('"', '')
     scenario_filter_str = ','.join(str(e) for e in core.GL['widgets']['scenario_filter'].active)
-    scenario_filter_str = '"' + scenario_filter_str + '"'
     if html_num == 'one':
-        auto_open = '"yes"'
+        auto_open = 'yes'
     else:
-        auto_open = '"no"'
-    start_str = 'start python'
-    if core.GL['widgets']['report_debug'].value == 'Yes':
-        start_str = 'start cmd /K python -m pdb '
-    sp.call(start_str + ' "' + this_dir_path + '/reports/interface_report_model.py" ' + data_type + ' ' + data_source + ' ' + scenario_filter_str + ' ' + diff + ' ' + base + ' ' + report_path + ' ' + report_format + ' "' + html_num + '" ' + output_dir + ' ' + auto_open, shell=True)
+        auto_open = 'no'
+    launch_report(this_dir_path + '/reports/interface_report_model.py',
+                  [data_type, data_source, scenario_filter_str, diff, base, report_path,
+                   report_format, html_num, output_dir, auto_open],
+                  output_dir=output_dir, debug=core.GL['widgets']['report_debug'].value == 'Yes')
 
 def build_reeds_report_separate():
     '''

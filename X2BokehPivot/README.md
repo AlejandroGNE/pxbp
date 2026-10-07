@@ -5,27 +5,32 @@ As mentioned this is a version of Bokeh Pivot which works independently from ReE
 
 Last updated documentation: 07/28/2023
 
-## Installation
-1. Make sure you have Python (v3.0 and above) installed.
-   #### How to check
-     1. Open command prompt or equivalent software.
-     2. Type ```python --version``` and press enter.
-     3. The version of Python you have should be listed, otherwise, you don't have Python installed. Go to https://www.python.org/downloads/ to download and install the newest version of Python.
-2. Make sure you have Bokeh 2.4.3 installed
-   This is the version that has been tested and is functional.
-   #### How to check
-   1. Open command prompt or equivalent software.
-   2. Type ```bokeh --version``` and press enter.
-   3. The version of Bokeh you have should be listed, otherwise, you don't have Bokeh installed.
-   #### Installing bokeh
-   1. Open command prompt or equivalent software.
-   2. Type ```pip install bokeh==2.4.3```
-   More details and documentation at https://docs.bokeh.org/en/latest/docs/first_steps/installation.html
+## Installation (standard Python, no Conda)
 
-## Launching Bokeh Pivot
-1. Download or clone this repository into your local machine.
-2. Inside the project root, look for a file named ```launch.bat``` clicking it should open a new browser window with Bokeh Pivot.
+Install standard 64-bit CPython **3.12** from python.org. From this folder:
 
+```powershell
+.\setup.bat
+.\launch.bat
+```
+
+Setup creates this folder's `.venv` and installs `requirements.txt` with pip.
+The classic UI keeps Bokeh 2.4.3 and NumPy 1.26.4, with pandas 2.2.3.
+No Conda activation or global Bokeh installation is needed. Run setup again
+for dependency installation/repair, or `setup.bat --check` to check existing imports.
+The launcher also works when called from another directory and returns the
+process exit code. Keep its terminal running; stop with Ctrl+C.
+
+For a fixed port without opening a browser:
+
+```powershell
+.\launch.bat --no-browser --port 5018
+```
+
+Open `http://localhost:5018/X2BokehPivot`. The default launcher picks an
+available port and opens the browser. Reports use this same venv interpreter.
+See [the environment guide](../docs/python-environments.md) for the native and
+modern viewers, explicit Python selection, and setup troubleshooting.
 
 Below are more instructions from the original Bokeh Pivot app
 =
