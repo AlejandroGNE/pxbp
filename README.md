@@ -1,101 +1,80 @@
-# PLEXOS2BokehPivot
+# PLEXOS2BokehPivot (`pxbp`)
 
-Welcome to PLEXOS2BokehPivot! This project converts PLEXOS XML solution files to CSV format and visualizes the data using Bokeh Pivot. Follow these steps to set up, convert, and visualize your data.
+The original Windows workflow queries PLEXOS **solution ZIPs** with the native
+PLEXOS API, writes category totals to CSV, and opens the bundled Bokeh Pivot.
+An input model XML by itself is not a solved result.
 
-## Installation
+## Original ZIP → CSV → Pivot workflow
 
-### Set Up the XML to CSV Environment
+Run commands from this repository root. Windows, an installed PLEXOS API,
+and its runtime/licensing prerequisites are required for the original scripts.
+Both `Plexos2BokehPivot.py` and `mappings.py` use the hardcoded API directory
+`C:/Program Files/Energy Exemplar/PLEXOS 10.0 API`; change it in both files
+if your installation differs. A Python environment alone does not install PLEXOS.
 
-1. Locate the `setup.bat` file in the root directory.
-2. Double-click `setup.bat` to run it. This script will install the XML to CSV environment necessary for the project.
-3. Place your PLEXOS solution files into the `PlexosSolutions` directory.
+1. Run `setup.bat`. It installs Miniforge under `%LOCALAPPDATA%/Miniforge3`
+   and creates `xml2csv` from `environment.yaml`. If the environment already
+   exists, use `conda env update -n xml2csv -f environment.yaml` instead of
+   recreating it. Check actual errors: the batch file can print success after
+   a failed environment creation.
+2. Create `PlexosSolutions` if missing. Put solved `.zip` files **directly in
+   that folder**, one ZIP per scenario. The script does not recurse into
+   scenario subfolders. Keep each ZIP intact, including its `*Solution.xml`.
+3. Edit `mappings.json`: collection enum IDs are keys and property enum IDs
+   are integer lists. Only reported properties can return results. IDs are
+   collection-specific; verify them with your PLEXOS version/report settings.
+   There is no `config.csv` or `configuration.json` in this workflow.
+4. Optionally regenerate that mapping with `map.bat` (not `setting.bat`).
+   Before running it, edit the model XML path in `get_report_properties()`
+   and `model_name` in `main()` in `mappings.py`. These are example-specific
+   hardcoded choices. The interactive script selects collections/properties
+   and overwrites `mappings.json`; it does not map arbitrary CSV columns.
+5. Set the phase in `process_collection_chunk()` and the period in `main()`
+   of `Plexos2BokehPivot.py`. The committed legacy script originally selects
+   `LTPlan` and prompts for `FiscalYear` or `Interval`. Some working copies
+   select `STSchedule` and hardcode `FiscalYear`; inspect your actual script.
+   It uses category aggregation with SUM and outputs
+   `category_name,p1,year,month,day,hour,value`.
+6. Run `.\launch.bat` from the root. It runs extraction, `postrename.py`,
+   then `postappend.py`. Output layout is
+   `runs/<period>/<ZIP filename without .zip>/outputs/*.csv`.
+   Extraction replaces the corresponding property files. Renaming also
+   replaces matching destination files, so back up results you need first.
+7. Check the console and `error_log.txt` for failures before visualizing.
+   A process finishing does not guarantee every property succeeded.
 
-### Set Up the Bokeh Pivot Environment
+The rename table in `postrename.py` must match your chosen collection/property
+IDs and Bokeh result definitions in `X2BokehPivot/reeds2.py`. For example,
+Generator property 2 becomes `gen_ann.csv`. A property not in the rename table
+stays `collection_<id>_property_<id>.csv` and is not automatically registered
+as a ReEDS result. `_apend` is the spelling used by the rename/append scripts;
+the extractor's separate `_append` helper is a different convention.
+`postrename.py` walks the current directory, so always launch from this root.
 
-1. Navigate to the `X2BokehPivot` folder.
-2. Run `setup.bat` to install the Bokeh Pivot environment.
-3. Launch Bokeh Pivot by running `launch.bat`.
+## Open the original viewer
 
-## Running the Program
+```powershell
+cd X2BokehPivot
+.\setup.bat
+.\launch.bat
+```
 
-### Convert PLEXOS Solution to CSV
+This is a separate `bokehpivot` environment with older pinned versions in
+`X2BokehPivot/environment.yaml`. Run its launcher from **inside that folder**:
+it serves `.`. Its server picks a free port and opens a browser. Keep the
+terminal running; stop the server with Ctrl+C.
 
-1. **Prepare Your PLEXOS Solution Files:**
-   - Ensure that all your PLEXOS solution files are placed in the `PlexosSolutions` directory, organized by scenario.
+Select the appropriate data type and paste an absolute path to
+`runs/<period>` so its immediate scenario folders contain `outputs`. If the
+prefilled path does not load, change it and press Enter, then restore it and
+press Enter to trigger the path callback. For an unregistered property file,
+use the CSV data type and point directly to that CSV; do not mix incompatible
+CSV schemas in a directory. Technology colors live in
+`X2BokehPivot/in/reeds2/tech_style.csv`.
 
-2. **Check Configuration:**
-   - Open `config.csv` to verify that all parameters are correct.
+The legacy hourly chart uses hour-of-day, not a complete timestamp. Select
+one year/month/day for hourly data, one year/month for daily data, and one
+ year for monthly data, or split the chart by those dimensions to avoid
+combining different dates.
 
-3. **Run the program**
-   - The output CSV files will be saved in the `runs` directory.
-   - Each scenario will have its own directory within `runs`, containing the processed files.
-
-   **Note:** The script processes LTPlans by default. To switch to STSchedule, update the following lines in the script:
-
-    ```python
-    SimulationPhaseEnum.LTPlan
-    ```
-
-    to
-
-    ```python
-    SimulationPhaseEnum.STSchedule
-    ```
-
-### Convert PLEXOS CSV to ReEDS CSV
-
-1. **Launch Plexos2BokehPivot Mapping Tool:**
-   - Double-click `setting.bat` to start the tool.
-   - Select "Mapping mode" when prompted.
-
-2. **Map Your Columns:**
-   - The tool will list CSV files from the `PlexosOutputs` folder. Choose the file you want to map, such as `generation.csv`.
-   - Map the columns to the dimensions required by Bokeh Pivot:
-     - **Example Mapping:**
-       - If you have a column named "category_name," map it to `Dim1`.
-       - For fixed values (e.g., a constant region), type `constant` and enter the value.
-       - Select the column for `Val` as the value column.
-
-3. **Save Your Configuration:**
-   - Enter a name for your mapping configuration to easily identify it later.
-   - The tool will automatically save your mapping settings in `configuration.json`.
-
-4. **Generate Output Files:**
-   - Run the tool again, choosing "Execute mode."
-   - The tool will generate new CSV files in the `runs` folder, named according to your mapping configuration.
-
-## Visualizing the Data with Bokeh Pivot
-
-1. **Open Bokeh Pivot:**
-   - Navigate to the `X2BokehPivot` directory.
-   - Run `launch.bat` to start Bokeh Pivot.
-   - When the browser opens, the path to the `runs` directory is selected
-   - remove a letter press enter and put the letter back and press enter
-
-2. **Load and Visualize Your Data:**
-   - Apply the visualization you selected to see your data represented effectively.
-   - By default the program selects the last year, month and day for hourly data.
-   - By default the program selects the last year, month for daily data.
-   - By default the program selects the last year, for monthly data. 
-
-Note that data will can only show data correctly if only 1 year, 1 month, 1 day is selcected since the hourly data will be concatnated.
-Same applies for the daily data, in this case its only 1 year and 1 month. Same aplies to monthly data, only one year at a time unless you 'explode' by year.
-
-
-
-3. **Customize Visualizations:**
-   - To customize the colors of technologies, go to `X2BokehPivot/in/reeds2` and modify the `tech_style.csv` file.
-
-## Example Workflow
-
-1. **Prepare Your Files:**
-   - Place your PLEXOS solution files into the `PlexosSolutions` directory.
-
-2. **Run the program:**
-   - Verify configuration in `config.csv`.
-   - Run `lanuch.bat` to generate CSV files
-
-3. **Visualize with Bokeh Pivot:**
-   - Start Bokeh Pivot and paste the path to the `runs` directory.
-   - Import the CSV files and apply the desired visualizations.
-   - Customize the visualizations as needed.
+See [the workflow audit](docs/workflow-audit.md) for discovered gaps and checks.
