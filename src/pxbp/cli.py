@@ -52,7 +52,7 @@ def main(argv=None):
             server = Server({"/": Application(FunctionHandler(lambda doc: make_document(doc, sources)))},
                             address="127.0.0.1", port=args.port)
             server.start()
-            print(f"PLEXOS Bokeh Pivot: http://127.0.0.1:{server.port}/", flush=True)
+            print(f"PLEXOS Bokeh Pivot: http://localhost:{server.port}/", flush=True)
             if not args.no_browser:
                 server.io_loop.add_callback(server.show, "/")
             server.io_loop.start()

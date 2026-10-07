@@ -45,10 +45,13 @@ placeholder IDs are valid JSON examples, not working Cloud resources.
 .\.venv\Scripts\pxbp.exe --solution-id <UUID1> --solution-id <UUID2> serve
 ```
 
-The server binds to `127.0.0.1:5006`, opens a browser, and remains running in
+The server binds to `127.0.0.1:5006`, opens `http://localhost:5006`, and remains running in
 the terminal. Use `--port 5007` if occupied, or `--port 0` for an available
 port. `--no-browser` suppresses opening the browser. Stop with Ctrl+C.
 Global source options go **before** `serve`, `query`, or `explore`.
+Use the printed `localhost` URL: Bokeh's default WebSocket origin is
+`localhost:<port>`. Substituting `127.0.0.1` in the browser can load HTML but
+reject the WebSocket, leaving a blank page.
 
 1. Select the solutions to compare. Press **Explore collection** to inspect
    reported phases, periods, properties, time slices, samples, models, bands,

@@ -54,3 +54,6 @@ Validation does not imply full native PLEXOS API parity.
   identity and Bokeh document construction/rendering/worker completion.
 * Only selected Cloud CSV results are downloaded temporarily. This does not
   establish that the service or CLI streams rows before completing a request.
+* Browser testing caught a blank page from a hostname mismatch: the initial
+  launcher printed `127.0.0.1` while Bokeh allowed `localhost`. The launcher
+  now prints the matching `localhost` URL, including when choosing port 0.
