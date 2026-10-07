@@ -106,6 +106,10 @@ instead of launching `start python` through PATH.
 * Sixteen automated tests passed, including rejection of Conda interpreters
   and launching reports with no Python on PATH while preserving empty arguments,
   spaces and shell metacharacters literally.
+* The same sixteen tests passed in the freshly installed repository `.venv`.
+  `setup.bat all` and `setup.bat all --check` returned zero when invoked from
+  outside the repository. All three environments passed `pip check`. The new
+  `pxbp.bat` launcher returned 192 synthetic Parquet rows in four batches.
 * The classic code emits pandas future-deprecation warnings, but these checks
   had no failed report sections. Its pandas major version remains below 3.
   This verifies selected ReEDS operations, not every result/preset or mapping.
