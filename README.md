@@ -1,135 +1,268 @@
 # PXBP — PLEXOS BOKEH PIVOT
 
-This standalone repository continues development from
-[Plexos2BokehPivot](https://github.com/AlejandroGNE/Plexos2BokehPivot),
-with the existing commit history and author attribution preserved. The bundled
-classic viewer retains its [original license](X2BokehPivot/LICENSE).
+PXBP lets you query PLEXOS results and compare scenarios in charts and tables.
+You choose the data to load, then adjust the chart in your web browser.
 
-The original Windows workflow queries PLEXOS **solution ZIPs** with the native
-PLEXOS API, writes category totals to CSV, and opens the bundled Bokeh Pivot.
-An input model XML by itself is not a solved result.
+**Start with the sample-data walkthrough below.** You do not need PLEXOS,
+a Cloud account, or your own solution files to try it. These instructions are
+for **64-bit Windows**. No programming experience or Conda is required.
 
-## Current version: on-demand Cloud and local Parquet queries
+## Step 1 — Install two prerequisites
 
-All supplied Windows launchers now use **standard CPython 3.12, `venv`, and
-pip**. Conda and Miniforge are not required. Install Python 3.12 from
-[python.org](https://www.python.org/downloads/windows/) first, then run:
+If both are already installed, check them as described below and continue.
+
+1. Install **Python 3.12**. The tested installer is on the
+   [Python 3.12.10 download page](https://www.python.org/downloads/release/python-31210/).
+   Scroll to **Files**, choose **Windows installer (64-bit)**, and open the
+   downloaded installer. Enable **Add python.exe to PATH** and leave the
+   Python launcher option enabled, then select **Install Now**. PXBP's setup
+   requires Python **3.12**; choosing a different major/minor version will fail.
+2. Install **Git for Windows** from the
+   [official download page](https://git-scm.com/install/windows).
+   Choose the x64 installer. During installation, keep the option that allows
+   Git to run from the command line and other software; the remaining defaults
+   are suitable. Git downloads one of PXBP's required components during setup.
+3. Close any PowerShell windows that were open before installation. Open a new
+   one: click the Windows **Start** button, type **PowerShell**, and open it.
+4. Paste each command below into PowerShell and press **Enter** after each one:
+
+   ```powershell
+   py -3.12 --version
+   git --version
+   ```
+
+   You should see `Python 3.12.x` and a Git version. If a command is not
+   recognized, see **Troubleshooting** below before continuing. On a managed
+   work computer, use your organization's approved installation process.
+
+## Step 2 — Get PXBP and open its folder
+
+**If you already have the new `pxbp` folder on your computer**, skip the download:
+open that folder in File Explorer, click its address bar, type `powershell`,
+and press **Enter**. Continue to Step 3.
+
+For a first download:
+
+1. In **File Explorer**, open **Documents**.
+2. Click the address bar at the top, type `powershell`, and press **Enter**.
+   This opens a command window in that folder.
+3. Paste this command and press **Enter**:
+
+   ```powershell
+   git clone https://github.com/AlejandroGNE/pxbp.git
+   ```
+
+   Wait until the download finishes and the prompt returns. The download
+   includes example files and project history, so it may take several minutes.
+4. Enter the downloaded folder:
+
+   ```powershell
+   cd pxbp
+   ```
+
+5. Check that you are in the right place:
+
+   ```powershell
+   dir setup.bat
+   ```
+
+   It should list a file named `setup.bat`. In File Explorer, this same folder
+   contains `README.md`, `pxbp.bat`, and the `examples` folder.
+
+**For every command below, use this PowerShell window in the `pxbp` folder.**
+Copy only the text inside a command box. The `PS C:\...>` prompt already shown
+in your window is not part of the command.
+
+## Step 3 — Set up the viewer once
+
+Paste this command and press **Enter**:
 
 ```powershell
-.\setup.bat all                 # Native extraction, classic viewer and modern pxbp
-.\setup.bat all --check         # Check existing environments without installing
+.\setup.bat modern
 ```
 
-For individual workflows use `setup.bat native`, `setup.bat viewer` or
-`setup.bat modern`. See [the no-Conda setup guide](docs/python-environments.md)
-for environment paths, interpreter selection, upgrades and troubleshooting.
+Wait for it to finish. It downloads the required packages into a folder named
+`.venv` inside PXBP. You do not need to open that folder or activate anything.
+Successful setup ends with lines containing **pxbp OK** and **Ready: modern**.
+If it says **Setup failed**, resolve that error before continuing.
 
-Version 0.3 adds a separate current Bokeh application. Give it Cloud
-solution IDs or converted local Parquet solution folders, run selected
-queries, and compare/pivot results as batches arrive. Local queries skip CSVs
-entirely. Start with [the cloud pivot guide](docs/cloud-pivot.md) or
-[direct local Parquet](docs/local-parquet.md). Sources can be mixed.
+Check the installation:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e '.[test]'
-.\.venv\Scripts\pxbp.exe --parquet 'C:\models\solution-parquet' serve
-# Cloud: replace the placeholder with a query-ready solution UUID.
-.\.venv\Scripts\pxbp.exe --solution-id <UUID> serve
+.\setup.bat modern --check
 ```
 
-Use the **Explore collection** button to find reported choices, then **Run
-query**. Change pivot axes/series/filters without re-querying. See
-[changes](CHANGELOG.md) and [validation](docs/workflow-audit.md).
+You should again see **pxbp OK** and **Ready: modern**. Setup is needed only
+once on this computer, or again after an update that changes dependencies.
 
-Try a small synthetic two-scenario example without PLEXOS or Cloud access:
+## Step 4 — Open a demo with sample data
+
+Create the sample files:
 
 ```powershell
 .\.venv\Scripts\python.exe examples/create-demo.py
-.\.venv\Scripts\pxbp.exe --config work/demo-parquet/sources.json serve
 ```
 
-Press **Run query** with the default choices, then try `category_name` as the
-series. The example generator refuses to overwrite an existing directory.
+It prints a path ending in `work\demo-parquet\sources.json`. This creates two
+fictional scenarios, **Demo baseline** and **Demo alternative**. It does not
+use your PLEXOS files or contact PLEXOS Cloud.
 
-## Original ZIP → CSV → Pivot workflow
-
-Run commands from this repository root. Windows, an installed PLEXOS API,
-and its runtime/licensing prerequisites are required for the original scripts.
-Both `Plexos2BokehPivot.py` and `mappings.py` use the hardcoded API directory
-`C:/Program Files/Energy Exemplar/PLEXOS 10.0 API`; change it in both files
-if your installation differs. A Python environment alone does not install PLEXOS.
-
-1. Run `.\setup.bat native` (or just `.\setup.bat`). It creates `.venv-native`
-   with standard Python 3.12 and installs `requirements-native.txt` using pip.
-   Repeat this command to repair/update its dependencies. Setup failures return
-   a nonzero exit code; setup checks imports before reporting success.
-2. Create `PlexosSolutions` if missing. Put solved `.zip` files **directly in
-   that folder**, one ZIP per scenario. The script does not recurse into
-   scenario subfolders. Keep each ZIP intact, including its `*Solution.xml`.
-3. Edit `mappings.json`: collection enum IDs are keys and property enum IDs
-   are integer lists. Only reported properties can return results. IDs are
-   collection-specific; verify them with your PLEXOS version/report settings.
-   There is no `config.csv` or `configuration.json` in this workflow.
-4. Optionally regenerate that mapping with `map.bat` (not `setting.bat`).
-   Before running it, edit the model XML path in `get_report_properties()`
-   and `model_name` in `main()` in `mappings.py`. These are example-specific
-   hardcoded choices. The interactive script selects collections/properties
-   and overwrites `mappings.json`; it does not map arbitrary CSV columns.
-5. Set the phase in `process_collection_chunk()` and the period in `main()`
-   of `Plexos2BokehPivot.py`. The committed legacy script originally selects
-   `LTPlan` and prompts for `FiscalYear` or `Interval`. Some working copies
-   select `STSchedule` and hardcode `FiscalYear`; inspect your actual script.
-   It uses category aggregation with SUM and outputs
-   `category_name,p1,year,month,day,hour,value`.
-6. Run `.\launch.bat` from the root. It runs extraction, `postrename.py`,
-   then `postappend.py`. Output layout is
-   `runs/<period>/<ZIP filename without .zip>/outputs/*.csv`.
-   Extraction replaces the corresponding property files. Renaming also
-   replaces matching destination files, so back up results you need first.
-7. Check the console and `error_log.txt` for failures before visualizing.
-   A process finishing does not guarantee every property succeeded.
-
-The rename table in `postrename.py` must match your chosen collection/property
-IDs and Bokeh result definitions in `X2BokehPivot/reeds2.py`. For example,
-Generator property 2 becomes `gen_ann.csv`. A property not in the rename table
-stays `collection_<id>_property_<id>.csv` and is not automatically registered
-as a ReEDS result. `_apend` is the spelling used by the rename/append scripts;
-the extractor's separate `_append` helper is a different convention.
-`postrename.py` walks the current directory, so always launch from this root.
-
-## Open the original viewer
+Launch the viewer:
 
 ```powershell
-cd X2BokehPivot
-.\setup.bat
-.\launch.bat
+.\pxbp.bat --config work/demo-parquet/sources.json serve
 ```
 
-This is a separate `X2BokehPivot/.venv` using standard Python 3.12 and the
-pip versions in `X2BokehPivot/requirements.txt`. It preserves the classic
-Bokeh 2.4 interface and ReEDS features. Launchers resolve their own directories,
-so `.\X2BokehPivot\launch.bat` also works from the repository root. Its server
-picks a free port and opens a browser. Keep the terminal running; stop with
-Ctrl+C. For automated checks use `launch.bat --no-browser --port 5018`.
+A browser should open at **http://localhost:5006/**. If it does not open,
+copy that address into your browser. **Keep the PowerShell window open** while
+you use the viewer; it runs the application.
 
-Select the appropriate data type and paste an absolute path to
-`runs/<period>` so its immediate scenario folders contain `outputs`. If the
-prefilled path does not load, change it and press Enter, then restore it and
-press Enter to trigger the path callback. For an unregistered property file,
-use the CSV data type and point directly to that CSV; do not mix incompatible
-CSV schemas in a directory. Technology colors live in
-`X2BokehPivot/in/reeds2/tech_style.csv`.
+## Step 5 — Make your first chart
 
-The ReEDS 2 viewer discovers a scenario only if `outputs/cap.csv` exists.
-If your configured capacity property is not renamed to `cap.csv`, the
-scenario is invisible in that mode. For example, the current working copy
-selects Generator property 212 while the rename table expects 214: reconcile
-these using your API's actual property enums before relying on this mode.
+1. In the browser, leave the default query settings unchanged. Both demo
+   scenarios should be selected in **Solutions to query**.
+2. Click **Run query** near the top. The **Pivot** tab opens while results load.
+3. Wait for **Complete. 192 result rows.** You should see a chart and table
+   comparing the two scenarios.
+4. In the **Pivot** tab, change **Series** to `category_name` to compare Gas
+   and Wind. Change **Chart** to **Bar** to try a different display.
+5. Use **Filter scenario** to show one scenario. An empty filter means all
+   scenarios. Chart and filter changes use the already-loaded data; you do
+   not need to click **Run query** again unless you change the query itself.
 
-The legacy hourly chart uses hour-of-day, not a complete timestamp. Select
-one year/month/day for hourly data, one year/month for daily data, and one
-year for monthly data, or split the chart by those dimensions to avoid
-combining different dates.
+The demo uses synthetic values. Use the next section when you are ready to
+query real solutions.
 
-See [the workflow audit](docs/workflow-audit.md) for discovered gaps and checks.
+## Step 6 — Stop and reopen PXBP
+
+To stop the viewer, return to PowerShell and press **Ctrl+C**. If Windows asks
+`Terminate batch job (Y/N)?`, enter `Y`. Closing the browser alone does not stop
+the application.
+
+Next time, open your `pxbp` folder in File Explorer, type `powershell` in its
+address bar, and run:
+
+```powershell
+.\pxbp.bat --config work/demo-parquet/sources.json serve
+```
+
+Do not recreate the demo files each time. If the creation command says
+**Choose a new output directory**, the demo folder already exists; simply run
+the launch command above.
+
+## Use your own PLEXOS results
+
+Choose the route that matches the files or access you have:
+
+| What you have | What to do |
+| --- | --- |
+| A converted PLEXOS solution folder containing Parquet files | Use **Local Parquet** below. No Cloud login or native PLEXOS API is needed. |
+| Solutions available in PLEXOS Cloud | Use **Cloud solutions** below. You need the Cloud CLI and access to those solutions. |
+| Only a solved PLEXOS solution ZIP | Convert it to Parquet with the Cloud CLI, or use the native ZIP extraction workflow linked below. |
+| Only a model input XML | Solve the model in PLEXOS first. A model input file does not contain solved results. |
+
+### Local Parquet
+
+1. Find the converted solution folder in File Explorer. It must contain
+   `fullkeyinfo`, `data`, and `period` folders with `.parquet` files inside.
+   Select the solution folder itself, not an individual `.parquet` file.
+2. Copy the folder's full path from File Explorer's address bar.
+3. Replace `C:\models\my-solution` in this command with that path. Keep the
+   quotation marks, especially if the path contains spaces:
+
+   ```powershell
+   .\pxbp.bat --parquet "C:\models\my-solution" serve
+   ```
+
+4. In the browser's **Query** tab, click **Explore collection**, then open
+   **Reported choices** to see what the first selected solution actually
+   contains. Set **Properties**, **Phase**, **Period**, and **Time slice** in
+   the Query tab to match those choices, then click **Run query**. The demo's
+   defaults are not guaranteed to be present in your own solution.
+
+To compare two local solutions, replace both example paths:
+
+```powershell
+.\pxbp.bat --parquet "C:\models\baseline" --parquet "C:\models\alternative" serve
+```
+
+Local queries read Parquet directly, without CSV intermediates. For converting
+ZIPs, naming scenarios, or mixing local and Cloud sources, see the
+[local Parquet guide](docs/local-parquet.md).
+
+### Cloud solutions
+
+1. Obtain **PLEXOS Cloud CLI** through your normal PLEXOS/IT installation
+   process and sign in using your organization's instructions. PXBP's setup
+   does not install the CLI or sign you in.
+2. Confirm that PowerShell recognizes it:
+
+   ```powershell
+   plexos-cloud solution sql --help
+   ```
+
+3. Obtain the **solution ID** for a solved result you can access. This is a
+   solution UUID, not its display name or a model XML filename. Ask your
+   PLEXOS Cloud administrator if you do not know where to find it.
+4. Replace `YOUR-SOLUTION-ID` with the actual ID, keeping the quotes:
+
+   ```powershell
+   .\pxbp.bat --solution-id "YOUR-SOLUTION-ID" serve
+   ```
+
+5. Click **Explore collection**, inspect **Reported choices**, choose matching
+   query settings, and click **Run query**. Check the reported choices of each
+   solution before comparing them; exploration shows the first selected one.
+
+For multiple solution IDs and query troubleshooting, see the
+[Cloud guide](docs/cloud-pivot.md).
+
+### Native ZIP extraction and the classic viewer
+
+This route requires an installed Windows PLEXOS API and more preparation.
+It extracts CSV files and offers the classic ReEDS chart presets and reports.
+Follow the [native ZIP and classic viewer guide](docs/native-csv.md) for its
+separate setup, mappings, extraction, and viewer steps. The sample walkthrough
+above uses the modern viewer, which does not require these extra steps.
+
+## Troubleshooting
+
+| What you see | What to do |
+| --- | --- |
+| `py` or Python 3.12 is not found | Install Python 3.12 with the launcher enabled, then close and reopen PowerShell. Check `py -3.12 --version`. |
+| `git` is not recognized | Install Git for Windows with command-line access enabled, then close and reopen PowerShell. Check `git --version`. |
+| `setup.bat` or `pxbp.bat` is not found | Open the folder containing those files. Use `dir setup.bat` to check. Commands must begin with `.\`. |
+| **Environment missing** | Run `.\setup.bat modern` and wait for **Ready: modern**. |
+| Demo creation says **Choose a new output directory** | The demo files already exist. Skip creation and launch using `work/demo-parquet/sources.json`. |
+| The browser does not open | Open the printed `http://localhost:.../` address yourself. Keep PowerShell open. |
+| Port 5006 is already in use | Stop the earlier viewer with Ctrl+C, or add `--port 5007` after `serve` and open `http://localhost:5007/`. |
+| A blank page or disconnected viewer | Use `localhost` in the address, keep the server running, and refresh after restarting it. |
+| Missing Parquet tables | Choose the solution folder containing all three required table folders, not a single file or its parent directory. |
+| Empty results or an unsupported choice | Use **Explore collection** and match the reported names and dates. Confirm that the selected solution contains those results. |
+| Cloud says solution data is being prepared | Wait for the service to prepare it and retry. A completed resource can still be unavailable for queries. |
+| IT blocks Python or a required program | Give IT the blocked executable path and message so they can approve it through your normal process. |
+
+If you need help, [open an issue](https://github.com/AlejandroGNE/pxbp/issues)
+with the command you ran and the error message. Do not include passwords,
+tokens, or private solution files.
+
+## Update an existing installation
+
+Stop the viewer with **Ctrl+C**, then run these commands from the `pxbp` folder:
+
+```powershell
+git pull --ff-only
+.\setup.bat modern
+.\setup.bat modern --check
+```
+
+Then launch it again. If Git reports local changes, keep your changes and ask
+for help resolving them before updating.
+
+## More detailed guides
+
+- [Cloud queries](docs/cloud-pivot.md)
+- [Direct local Parquet queries](docs/local-parquet.md)
+- [Native ZIP extraction and classic ReEDS viewer](docs/native-csv.md)
+- [Environment setup and interpreter selection](docs/python-environments.md)
+- [Changes](CHANGELOG.md) and [validation record](docs/workflow-audit.md)
