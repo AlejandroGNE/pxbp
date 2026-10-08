@@ -1,4 +1,9 @@
-# PLEXOS2BokehPivot (`pxbp`)
+# PXBP — PLEXOS BOKEH PIVOT
+
+This standalone repository continues development from
+[Plexos2BokehPivot](https://github.com/AlejandroGNE/Plexos2BokehPivot),
+with the existing commit history and author attribution preserved. The bundled
+classic viewer retains its [original license](X2BokehPivot/LICENSE).
 
 The original Windows workflow queries PLEXOS **solution ZIPs** with the native
 PLEXOS API, writes category totals to CSV, and opens the bundled Bokeh Pivot.
