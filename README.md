@@ -293,3 +293,12 @@ For your own solutions, follow the [capacity report guide](docs/reports.md).
 It explains the required asset mapping, per-unit MW ratings, exclusions and
 query selections. This first report covers annual new capacity; the other
 report types are still under development.
+
+## Installed capacity, costs, energy and flowgates
+
+Follow the [annual reporting guide](docs/annual-reports.md) to select properties
+from a downloaded solution ZIP directly into Parquet, map current owner/state
+geography, and export an offline dashboard and PDF. Existing local-Parquet and
+cloud sources use the same report specifications. Native ZIP extraction needs
+a compatible installed PLEXOS API and the optional native Python extra; it does
+not require Conda.

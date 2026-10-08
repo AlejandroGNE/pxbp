@@ -28,16 +28,30 @@ def main(argv=None):
     query.add_argument("--batch-size", type=int, default=5000)
     query.add_argument("--window-days", type=int, default=0)
     query.add_argument("--timeout", type=float, default=180)
-    report = sub.add_parser("report", help="Export annual new capacity as offline HTML and PDF")
-    report.add_argument("--spec", required=True, help="JSON capacity queries and asset mapping")
+    report = sub.add_parser("report", help="Export audited annual reports as offline HTML and PDF")
+    report.add_argument("--spec", required=True, help="JSON capacity or annual-metrics specification")
     report.add_argument("--output", required=True, help="New output folder")
     report.add_argument("--max-rows", type=int, default=1000000)
     report.add_argument("--timeout", type=float, default=600)
     annual = sub.add_parser("import-annual-zip", help="Import native annual build summaries into Parquet")
     annual.add_argument("--zip", required=True, help="Downloaded solution ZIP")
     annual.add_argument("--output", required=True, help="New Parquet output folder")
+    native = sub.add_parser("import-native-annual", help="Select annual properties from a ZIP directly into Parquet")
+    native.add_argument("--zip", required=True)
+    native.add_argument("--output", required=True)
+    native.add_argument("--spec", required=True, help="JSON years and collection/property arrays")
+    native.add_argument("--api-path", required=True, help="Installed compatible PLEXOS API folder")
     args = parser.parse_args(argv)
     try:
+        if args.command == "import-native-annual":
+            from .native_import import import_native_annual
+            spec = json.loads(Path(args.spec).read_text(encoding="utf-8-sig"))
+            try:
+                destination = import_native_annual(args.zip, args.output, spec, args.api_path)
+            except Exception as exc:
+                raise RuntimeError(f"Native annual import failed: {exc}") from exc
+            print(f"Annual Parquet saved: {destination}")
+            return 0
         if args.command == "import-annual-zip":
             from .annual_import import import_annual_zip
             print(f"Annual Parquet saved: {import_annual_zip(args.zip, args.output)}")
@@ -59,8 +73,13 @@ def main(argv=None):
                 print(batch.frame.to_json(orient="records", date_format="iso"), flush=True)
         elif args.command == "report":
             from .reports import export_capacity, load_spec
-            destination = export_capacity(sources, load_spec(args.spec), args.output,
-                                          max_rows=args.max_rows, timeout=args.timeout)
+            spec = json.loads(Path(args.spec).read_text(encoding="utf-8-sig"))
+            if "metrics" in spec:
+                from .annual_metrics import export_metrics
+                destination = export_metrics(sources, spec, args.output, max_rows=args.max_rows, timeout=args.timeout)
+            else:
+                destination = export_capacity(sources, load_spec(args.spec), args.output,
+                                              max_rows=args.max_rows, timeout=args.timeout)
             print(f"Report saved: {destination}")
         elif args.command == "explore":
             import threading

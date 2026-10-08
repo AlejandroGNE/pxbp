@@ -4,18 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pxbp"
-version = "0.4.1"
+version = "0.5.0"
 description = "On-demand PLEXOS Cloud and local Parquet queries with Bokeh pivots"
 requires-python = ">=3.10"
 dependencies = [
   "bokeh>=3.4,<4",
   "pandas>=2.2,<3",
+  "duckdb>=1.3,<2",
   "reportlab>=4.2,<5",
   "plexos-query @ git+https://github.com/AlejandroGNE/plexos-query.git@39495be3e164129c9aae4077f40175c448c918bd",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+native = ["pythonnet>=3,<4"]
 
 [project.scripts]
 pxbp = "pxbp.cli:main"

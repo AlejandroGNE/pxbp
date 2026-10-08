@@ -152,6 +152,7 @@ or solution IDs. Check that all component queries have the intended scope;
 an omitted collection or an explicit asset filter cannot be detected as an
 unreported asset universe.
 
-This release supports annual new capacity by one explicit region grouping.
-Installed capacity, additional geography views, cost measures, maps and flowgate
-exploration remain separate report features.
+For installed capacity, multiple geography views, costs, energy, reserve margins
+and annual asset exploration, follow [Annual reports](annual-reports.md).
+Physical maps and interval flowgate analysis require additional model links and
+interval results.
