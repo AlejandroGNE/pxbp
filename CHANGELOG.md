@@ -1,5 +1,15 @@
 # Changes
 
+## 0.4.0
+
+- Add audited annual new capacity reports with offline HTML, vector PDF,
+  consistent technology colors, scenario/year selectors and asset-level audit.
+- Import native annual build summaries from solution ZIPs directly into
+  queryable Parquet with source checksums and explicit provenance.
+- Add a synthetic report walkthrough and checks for unit conversion, missing
+  mappings, duplicate samples and infrastructure proxy exclusions.
+
+
 ## Unreleased — standard Python setup
 
 * Replace Conda/Miniforge batch setup and activation with CPython 3.12, venv and pip.

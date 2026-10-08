@@ -266,3 +266,30 @@ for help resolving them before updating.
 - [Native ZIP extraction and classic ReEDS viewer](docs/native-csv.md)
 - [Environment setup and interpreter selection](docs/python-environments.md)
 - [Changes](CHANGELOG.md) and [validation record](docs/workflow-audit.md)
+
+## Create an HTML and PDF capacity report
+
+Start with this small sample report after completing Steps 1–3 above. If you
+already installed PXBP, rerun setup to add the PDF renderer. In the same
+PowerShell window, paste each command and press Enter:
+
+```powershell
+.\setup.bat modern
+.\.venv\Scripts\python.exe examples\create-capacity-demo.py
+.\pxbp.bat --config work/demo-capacity/sources.json report --spec work/demo-capacity/capacity-spec.json --output work/capacity-report
+Start-Process work\capacity-report\capacity.html
+Start-Process work\capacity-report\capacity.pdf
+```
+
+The browser opens a report comparing two invented cases. Choose a build year
+and hover over the chart to inspect new capacity. The PDF opens separately.
+Both files use consistent technology colors. The HTML works offline.
+
+These commands create `work/capacity-report/audit.json` as well, which records
+the calculations and exclusions. If a sample or report folder already exists,
+choose a new output name; existing files are never overwritten.
+
+For your own solutions, follow the [capacity report guide](docs/reports.md).
+It explains the required asset mapping, per-unit MW ratings, exclusions and
+query selections. This first report covers annual new capacity; the other
+report types are still under development.

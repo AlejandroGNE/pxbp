@@ -5,6 +5,7 @@ import argparse
 import json
 import sys
 import webbrowser
+import zipfile
 from pathlib import Path
 
 from .sources import Selection, Source, load_sources, reader_for, stream_query
@@ -27,8 +28,20 @@ def main(argv=None):
     query.add_argument("--batch-size", type=int, default=5000)
     query.add_argument("--window-days", type=int, default=0)
     query.add_argument("--timeout", type=float, default=180)
+    report = sub.add_parser("report", help="Export annual new capacity as offline HTML and PDF")
+    report.add_argument("--spec", required=True, help="JSON capacity queries and asset mapping")
+    report.add_argument("--output", required=True, help="New output folder")
+    report.add_argument("--max-rows", type=int, default=1000000)
+    report.add_argument("--timeout", type=float, default=600)
+    annual = sub.add_parser("import-annual-zip", help="Import native annual build summaries into Parquet")
+    annual.add_argument("--zip", required=True, help="Downloaded solution ZIP")
+    annual.add_argument("--output", required=True, help="New Parquet output folder")
     args = parser.parse_args(argv)
     try:
+        if args.command == "import-annual-zip":
+            from .annual_import import import_annual_zip
+            print(f"Annual Parquet saved: {import_annual_zip(args.zip, args.output)}")
+            return 0
         if args.config and (args.solution_id or args.parquet):
             raise ValueError("Use --config or direct source options, not both")
         sources = load_sources(args.config) if args.config else [Source(f"Solution {i}", value)
@@ -44,6 +57,11 @@ def main(argv=None):
                                   window_days=args.window_days, timeout=args.timeout)
             for batch in stream_query(sources, selection):
                 print(batch.frame.to_json(orient="records", date_format="iso"), flush=True)
+        elif args.command == "report":
+            from .reports import export_capacity, load_spec
+            destination = export_capacity(sources, load_spec(args.spec), args.output,
+                                          max_rows=args.max_rows, timeout=args.timeout)
+            print(f"Report saved: {destination}")
         elif args.command == "explore":
             import threading
             for source in sources:
@@ -63,7 +81,7 @@ def main(argv=None):
             server.io_loop.start()
     except KeyboardInterrupt:
         return 130
-    except (OSError, ValueError, RuntimeError) as exc:
+    except (OSError, ValueError, RuntimeError, zipfile.BadZipFile) as exc:
         print(f"pxbp: {exc}", file=sys.stderr)
         return 2
     return 0
