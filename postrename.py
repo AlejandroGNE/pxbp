@@ -7,8 +7,8 @@ filename_mapping = {
     'collection_1_property_214.csv': 'cap.csv',
     'collection_80_property_5.csv': 'gen_ann_apend.csv',
     'collection_80_property_6.csv': 'bat_load.csv',
-    'collection_80_property_69.csv': 'cap_apend.csv',
-    'collection_111_property_3.csv': 'emit_r.csv'
+    'collection_80_property_70.csv': 'cap_apend.csv',
+    'collection_116_property_3.csv': 'emit_r.csv'
 }
 
 # Traverse the directory and subdirectories

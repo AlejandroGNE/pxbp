@@ -44,7 +44,7 @@ def get_report_properties(model_name):
     """
     # Load the XML model file
     model = DatabaseCore()
-    model.Connection(os.path.join(os.path.dirname(__file__), 'testmodel.xml'))
+    model.Connection(os.path.join(os.path.dirname(__file__), 'ch3_pilot_v3_1 RECOVER.xml'))
     
     # Extract class and collection IDs
     classes = model.FetchAllClassIds()

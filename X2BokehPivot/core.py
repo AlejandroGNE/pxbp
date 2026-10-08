@@ -107,7 +107,7 @@ GL = {'df_source':None, 'df_plots':None, 'columns':None, 'data_source_wdg':None,
 
 #os globals
 this_dir_path = os.path.dirname(os.path.realpath(__file__))
-runs_path = os.path.dirname(this_dir_path) + r'\runs'
+runs_path = os.path.dirname(this_dir_path) + r'\runs\FiscalYear'
 out_path = this_dir_path + '/out'
 
 def initialize():

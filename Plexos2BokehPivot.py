@@ -151,7 +151,7 @@ def process_collection_chunk(collection_id, collection_name, input_folder, outpu
 
     # QueryToCSV Inputs
     append         = True
-    simulation     = SimulationPhaseEnum.LTPlan
+    simulation     = SimulationPhaseEnum.STSchedule
     periodEnum     = getattr(PeriodEnum, f'{period_enum_value}')  
     collectionEnum = collection_id  # Use collection_id directly
     parentName     = "" 
@@ -191,7 +191,7 @@ def process_collection_chunk(collection_id, collection_name, input_folder, outpu
         os.makedirs(solution_output_folder, exist_ok=True)
 
         sol.Connection(sol_file_path)
-        print(f'Processing {collection_name} (ID: {collection_id}) for {sol_file}...')
+        # print(f'Processing {collection_name} (ID: {collection_id}) for {sol_file}...')
 
         try:
             if period_enum_value == "Interval":
@@ -274,7 +274,7 @@ def process_collection_chunk(collection_id, collection_name, input_folder, outpu
                     current_date += relativedelta(years=1)
             else:
                 # Non-interval case
-                print(f'Processing entire horizon for {collection_name} for {sol_file}...')
+                # print(f'Processing entire horizon for {collection_name} for {sol_file}...')
                 date_from, date_to = find_horizon(sol_file_path)
                 TS0 = date_from.strftime('%m/%d/%Y %I:%M:%S %p').replace('/0', '/').lstrip("0").replace(" 0", " ")
                 TS1 = date_to.strftime('%m/%d/%Y %I:%M:%S %p').replace('/0', '/').lstrip("0").replace(" 0", " ")
@@ -487,8 +487,9 @@ def main():
         input('Press any key to continue...')
     else:
         try:
-            print("Please enter 'FiscalYear' or 'Interval' ")
-            period_enum_value = input()
+            # print("Please enter 'FiscalYear' or 'Interval' ")
+            # period_enum_value = input()
+            period_enum_value = 'FiscalYear'
             for collection_id_str, properties in collections.items():
                 collection_id = int(collection_id_str)
                 collection_name = collection_mapping.get(collection_id, f"Collection_{collection_id}")
