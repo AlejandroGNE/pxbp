@@ -1,5 +1,11 @@
 # Changes
 
+## 0.4.1
+
+- Support explicit region-to-reporting-group crosswalks while retaining original
+  asset regions in the audit and rejecting incomplete mappings.
+- Accept reported battery Generation Capacity Built in power units.
+
 ## 0.4.0
 
 - Add audited annual new capacity reports with offline HTML, vector PDF,

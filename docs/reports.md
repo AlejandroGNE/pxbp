@@ -58,7 +58,9 @@ conversion can consume substantial memory; run large conversions sequentially.
    that one case is a baseline.
 2. Use `explore` to identify the reported annual build property, phase, sample,
    model and timeslice. Copy actual metadata names, including spaces. Prefer
-   **Capacity Built** when reported in power units. Otherwise use **Units Built**.
+   **Capacity Built** when reported in power units. For batteries,
+   **Generation Capacity Built** is also supported as reported power. Otherwise
+   use **Units Built**.
 3. Copy the demo's `capacity-spec.json` outside the repository and edit its
    queries and asset mappings. Each queried collection needs its own query.
    Generator and battery objects may have the same name; identify them by both
@@ -110,6 +112,25 @@ Supported technology labels are `Nuclear`, `Coal`, `Gas-CC`, `Gas-CT`,
 `Hydropower`, `Geothermal`, `Biopower`, `Onshore Wind`, `Offshore Wind`, `UPV`,
 `DPV`, `Battery` and `Pumped Storage`. Expansion cohort categories are not
 automatically treated as technologies.
+
+## Combine model regions into reporting groups
+
+Add `region_groups` to the report specification when several input regions
+belong to one reporting group:
+
+```json
+"region_groups": {
+  "Region A": "Group 1",
+  "Region B": "Group 1",
+  "Region C": "Group 2"
+}
+```
+
+Every included asset region must have a mapping. The audit retains each asset's
+`source_region` alongside its final reporting `region`. Grouping preserves
+capacity totals. Validate older crosswalks against the current model's node,
+region and zone memberships before using them. Asset technology/state tables
+can become stale even when a regional crosswalk still agrees.
 
 ## Calculation and checks
 

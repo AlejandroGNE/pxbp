@@ -80,3 +80,32 @@ def test_spec_rejects_cumulative_or_aggregated_builds(demo):
     target.write_text(json.dumps(value))
     with pytest.raises(ValueError, match="Capacity additions require"):
         load_spec(target)
+
+
+def test_regional_crosswalk_preserves_capacity_and_source_assignments(demo):
+    _, sources, value = demo
+    original, _, _ = collect_capacity(sources, value)
+    value["region_groups"] = {"Region A": "Combined", "Region B": "Combined"}
+    grouped, _, _ = collect_capacity(sources, value)
+    assert grouped.capacity_mw.sum() == original.capacity_mw.sum()
+    assert set(grouped.region) == {"Combined"}
+    assert set(grouped.source_region) == {"Region A", "Region B"}
+
+
+def test_regional_crosswalk_requires_every_asset_region(demo):
+    folder, _, value = demo
+    value["region_groups"] = {"Region A": "Combined"}
+    target = folder / "incomplete-crosswalk.json"
+    target.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(ValueError, match="no reporting group"):
+        load_spec(target)
+
+
+def test_reported_battery_power_uses_generation_capacity_built():
+    value = spec()
+    value["assets"][0]["collection"] = "SystemBatteries"
+    value["assets"][0]["technology"] = "Battery"
+    rows, _ = capacity_rows(pd.DataFrame([row(collection_name="Batteries", property_name="Generation Capacity Built", unit="MW", value=75)]), value)
+    assert rows.capacity_mw.tolist() == [75]
+    with pytest.raises(ValueError, match="battery power only"):
+        capacity_rows(pd.DataFrame([row(property_name="Generation Capacity Built", unit="MW")]), spec())

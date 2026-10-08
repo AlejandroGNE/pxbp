@@ -29,8 +29,10 @@ def load_spec(path):
     seen = set()
     for query in spec["queries"]:
         Selection(query)
-        if query.get("period") != "Year" or query.get("properties") not in ("UnitsBuilt", "CapacityBuilt", "Units Built", "Capacity Built"):
+        if query.get("period") != "Year" or query.get("properties") not in ("UnitsBuilt", "CapacityBuilt", "Units Built", "Capacity Built", "GenerationCapacityBuilt", "Generation Capacity Built"):
             raise ValueError("Capacity additions require Year and UnitsBuilt or CapacityBuilt")
+        if query["properties"].replace(" ", "").lower() == "generationcapacitybuilt" and query["collection"].removeprefix("System") != "Batteries":
+            raise ValueError("Generation Capacity Built is supported for battery power only")
         if query.get("aggregate_by") or query.get("aggregate_type"):
             raise ValueError("Report queries must retain individual assets; remove aggregation")
         collection = query["collection"]
@@ -39,9 +41,14 @@ def load_spec(path):
         seen.add(collection)
     if not isinstance(spec["assets"], list):
         raise ValueError("assets must be an array")
+    region_groups = spec.get("region_groups")
+    if region_groups is not None and (not isinstance(region_groups, dict) or not region_groups or
+            any(not isinstance(k, str) or not k.strip() or not isinstance(v, str) or not v.strip()
+                for k, v in region_groups.items())):
+        raise ValueError("region_groups must map region names to nonempty reporting group names")
     identities = set()
     for asset in spec["assets"]:
-        identity = (asset["collection"], asset["object_name"])
+        identity = (asset["collection"].removeprefix("System"), asset["object_name"])
         if identity in identities:
             raise ValueError(f"Duplicate asset mapping: {identity}")
         identities.add(identity)
@@ -49,6 +56,8 @@ def load_spec(path):
             continue
         if not asset.get("region") or asset.get("technology") not in TECHNOLOGY_COLORS:
             raise ValueError(f"Asset needs region and a supported technology: {identity}")
+        if region_groups is not None and asset["region"] not in region_groups:
+            raise ValueError(f"Asset region has no reporting group: {asset['region']}")
         for value in [asset.get("capacity_mw"), *asset.get("capacity_mw_by_year", {}).values()]:
             if value is not None and (not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0):
                 raise ValueError(f"Per-unit power rating must be positive finite MW: {identity}")
@@ -83,8 +92,10 @@ def capacity_rows(frame, spec):
         dimensions[scenario_collection] = dim
         if row.get("period_type_name") != "Year":
             raise ValueError("Report results must be annual")
-        if row["property_name"] not in ("Units Built", "UnitsBuilt", "Capacity Built", "CapacityBuilt"):
+        if row["property_name"] not in ("Units Built", "UnitsBuilt", "Capacity Built", "CapacityBuilt", "Generation Capacity Built", "GenerationCapacityBuilt"):
             raise ValueError("Unexpected property in capacity additions")
+        if row["property_name"].replace(" ", "").lower() == "generationcapacitybuilt" and identity[0] != "Batteries":
+            raise ValueError("Generation Capacity Built is supported for battery power only")
         if abs(value) <= 1e-8:
             continue
         asset = assets.get(identity)
@@ -110,10 +121,10 @@ def capacity_rows(frame, spec):
             rating = None
             method = "Reported Capacity Built"
         rows.append({"scenario": row["scenario"], "collection": identity[0], "object_name": identity[1],
-                     "year": year, "region": asset["region"], "technology": asset["technology"],
+                     "year": year, "source_region": asset["region"], "region": spec.get("region_groups", {}).get(asset["region"], asset["region"]), "technology": asset["technology"],
                      "capacity_mw": mw, "reported_value": value, "reported_unit": row["unit"],
                      "per_unit_mw": rating, "method": method})
-    columns = ["scenario", "collection", "object_name", "year", "region", "technology", "capacity_mw",
+    columns = ["scenario", "collection", "object_name", "year", "source_region", "region", "technology", "capacity_mw",
                "reported_value", "reported_unit", "per_unit_mw", "method"]
     return pd.DataFrame(rows, columns=columns), excluded
 
@@ -161,7 +172,7 @@ def report_document(rows, excluded, years, spec, scenarios):
                               HoverTool, Select, TabPanel, TableColumn, Tabs)
     from bokeh.plotting import figure
 
-    regions = sorted({a["region"] for a in spec["assets"] if not a.get("exclude_reason")})
+    regions = sorted({spec.get("region_groups", {}).get(a["region"], a["region"]) for a in spec["assets"] if not a.get("exclude_reason")})
     data = chart_data(rows, [scenarios[0]], regions)
     source = ColumnDataSource(data)
     views = {}
@@ -220,7 +231,7 @@ def write_pdf(path, rows, excluded, years, spec, scenarios):
     width, height = landscape(A4)
     c = canvas.Canvas(str(path), pagesize=(width, height))
     c.setTitle(spec.get("title", "New capacity by region"))
-    regions = sorted({a["region"] for a in spec["assets"] if not a.get("exclude_reason")})
+    regions = sorted({spec.get("region_groups", {}).get(a["region"], a["region"]) for a in spec["assets"] if not a.get("exclude_reason")})
     techs = list(TECHNOLOGY_COLORS)
     active = [t for t in techs if t in set(rows.technology)]
     page_number = 0
