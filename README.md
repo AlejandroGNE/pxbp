@@ -236,7 +236,7 @@ above uses the modern viewer, which does not require these extra steps.
 | Demo creation says **Choose a new output directory** | The demo files already exist. Skip creation and launch using `work/demo-parquet/sources.json`. |
 | The browser does not open | Open the printed `http://localhost:.../` address yourself. Keep PowerShell open. |
 | Port 5006 is already in use | Stop the earlier viewer with Ctrl+C, or add `--port 5007` after `serve` and open `http://localhost:5007/`. |
-| A blank page or disconnected viewer | Use `localhost` in the address, keep the server running, and refresh after restarting it. |
+| A blank page, or PowerShell says **Refusing websocket connection** | Open `http://localhost:5006/` (use your chosen port). If the address starts with `127.0.0.1`, replace it with `localhost`. Keep PowerShell open and refresh. Update PXBP below to fix automatic browser opening in older versions. |
 | Missing Parquet tables | Choose the solution folder containing all three required table folders, not a single file or its parent directory. |
 | Empty results or an unsupported choice | Use **Explore collection** and match the reported names and dates. Confirm that the selected solution contains those results. |
 | Cloud says solution data is being prepared | Wait for the service to prepare it and retry. A completed resource can still be unavailable for queries. |

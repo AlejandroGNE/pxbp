@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import webbrowser
 from pathlib import Path
 
 from .sources import Selection, Source, load_sources, reader_for, stream_query
@@ -58,7 +59,7 @@ def main(argv=None):
             server.start()
             print(f"PLEXOS Bokeh Pivot: http://localhost:{server.port}/", flush=True)
             if not args.no_browser:
-                server.io_loop.add_callback(server.show, "/")
+                server.io_loop.add_callback(webbrowser.open, f"http://localhost:{server.port}/")
             server.io_loop.start()
     except KeyboardInterrupt:
         return 130
