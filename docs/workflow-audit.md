@@ -139,3 +139,30 @@ blocker is historical; selected classic features are now exercised successfully.
 - The new library is validated on local Parquets. Cloud uses the existing
   query adapter; these new presets have not been independently exercised
   against a live Cloud service in this validation pass.
+
+
+## Analytical workspaces (0.8.0)
+
+- The regression suite contains 92 tests. New checks use fictional Parquets
+  through the real local adapter for all 79 recipes, plus a 36-solution bounded
+  build with shared measurement reuse. Existing annual and custom pivots remain covered.
+- Uneven intervals and month/hour crossings preserve integrated energy and
+  reported interval amounts. Tests distinguish duration-weighted and load-weighted
+  prices, and verify calendar-year utilization, asset-weighted metrics, native
+  mass units, missing operands, zero denominators, and gaps in observed events.
+- Independent bounded SQL queries match private exports for monthly energy,
+  weighted prices, duration curves, daily profiles, reported capacity factors,
+  nominal utilization, weighted levelized costs, cost intensity, and baseline differences.
+- All 79 recipes have compatible measurements in the current private test set.
+  A focused 37-section report also covers three complete interval months with
+  no partial-month or missing-window flags; annual reports use a separate horizon.
+- Browser checks build reports, change baseline and display cases, edit charts,
+  views and layouts, reorder/duplicate/remove sections, change colors, save and
+  reload configurations, and switch lazy offline sections without script errors.
+- Vector PDFs contain readable text and section bookmarks. Representative final
+  pages are rendered and inspected for annual, interval, monthly, heatmap, and
+  scatter views. Input and calculation audits remain beside each report.
+- Analytical calculations were validated on local Parquets. Cloud uses the
+  existing bounded query adapter; this release's new recipe collection has not
+  been independently tested against a live Cloud service. Reported properties
+  and conventions still govern availability and interpretation.

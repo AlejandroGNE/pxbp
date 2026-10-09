@@ -205,3 +205,11 @@ ambiguous model selections are rejected explicitly.
 The library does not yet supply weighted averages, arbitrary expressions,
 maps, or automatically inferred technology/geography mappings. Use the
 existing asset-mapped reporting guides for geography-based reports.
+
+## Edit annual reports with GUI controls
+
+The [Analytics workspace](analytical-workspaces.md) includes the annual measures
+plus derived and interval reports. Use `analysis-config --bundle` to carry an
+annual bundle into that workspace, then use its report editor for charts, colors,
+section ordering, titles, and comparison views. Choose the desired annual recipes
+in **Recipes to include** and remove interval recipes for an annual-only report.
