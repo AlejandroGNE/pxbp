@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-IDENTITY = ["property_name", "unit", "phase_name", "period_type_name", "timeslice_name",
+IDENTITY = ["collection_name", "class_name", "property_name", "unit", "phase_name", "period_type_name", "timeslice_name",
             "sample_name", "model_name", "band_id"]
 AXES = ["start_date", "year", "month", "day", "hour", "object_name", "category_name", "scenario"]
 SERIES = ["scenario", "category_name", "object_name", "property_name", "unit", "timeslice_name"]
 
 
-def pivot(frame, *, x="start_date", series="scenario", operation="sum", filters=None):
+def pivot(frame, *, x="start_date", series="scenario", operation="sum", filters=None, facet="None"):
     if x not in AXES or series not in SERIES or operation not in {"sum", "mean", "min", "max"}:
         raise ValueError("Unsupported pivot axis, series, or operation")
     data = frame.copy()
@@ -19,7 +19,10 @@ def pivot(frame, *, x="start_date", series="scenario", operation="sum", filters=
         data = data[data[key].isin(values)]
     for part in ("year", "month", "day", "hour"):
         data[part] = getattr(data["start_date"].dt, part)
-    keys = list(dict.fromkeys([x, series, "scenario"] + IDENTITY))
+    if facet != "None" and facet not in SERIES:
+        raise ValueError("Unsupported facet")
+    extras = ([facet] if facet != "None" else []) + (["end_date"] if x == "start_date" else [])
+    keys = list(dict.fromkeys([x, series, "scenario"] + IDENTITY + extras))
     return data.groupby(keys, dropna=False, observed=True, as_index=False)["value"].agg(operation)
 
 

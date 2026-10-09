@@ -57,9 +57,9 @@ The server binds to `127.0.0.1:5006`, opens `http://localhost:5006`, and remains
 the terminal. Use `--port 5007` if occupied, or `--port 0` for an available
 port. `--no-browser` suppresses opening the browser. Stop with Ctrl+C.
 Global source options go **before** `serve`, `query`, or `explore`.
-Use the printed `localhost` URL: Bokeh's default WebSocket origin is
-`localhost:<port>`. Substituting `127.0.0.1` in the browser can load HTML but
-reject the WebSocket, leaving a blank page.
+The default `localhost` URL and `127.0.0.1` are both permitted WebSocket
+origins when using a specified port. Prefer the printed URL, especially when
+using `--port 0` to choose a port automatically.
 
 1. In the **Query** tab, select the solutions to compare. Press **Explore collection** to inspect
    reported phases, periods, properties, time slices, samples, models, bands,
@@ -87,10 +87,12 @@ Bokeh session; a reconnect using an old session token may show a blank page.
 
 Properties, units, phases, period types, time slices, samples, models and
 bands remain separate pivot groups. Scenario identity is retained even if
-you choose another legend dimension. The chart displays at most 100 series
-and the table previews 1,000 pivot rows, with counts displayed explicitly.
-Line charts include points so one-period results are visible. Bars for
-different scenarios overlap; use lines or hide legend series to compare.
+you choose another legend dimension. The chart displays at most 120 panels and 100 series per panel,
+and the table previews 1,000 pivot rows, with limits displayed explicitly.
+Single-period line results include points. **Bar** groups scenarios side by side;
+**Stacked Bar** and **Stacked Area** keep scenario stacks in separate panels.
+See [comparison workspaces](comparison-workspaces.md) for baselines, deltas,
+saved plot configuration, presets, and optional Parquet query caching.
 
 ## What streams
 

@@ -39,7 +39,8 @@ def test_bokeh_document_and_render():
     doc.to_json()
     app.frame = data().head(3)
     app.render()
-    assert app.chart.children[0].x_range.end > app.chart.children[0].x_range.start
+    for chart, _, _ in app.chart.children[0].children:
+        assert chart.x_range.end > chart.x_range.start
     app.chart_type.value = "Bar"
     app.x.value = "month"
     doc.validate()

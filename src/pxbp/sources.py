@@ -47,7 +47,7 @@ class Source:
 
 QUERY_FIELDS = {"collection", "properties", "phase", "period", "parent", "child",
                 "category", "timeslice", "sample", "model", "date_from", "date_to",
-                "aggregate_by", "aggregate_type", "filter"}
+                "aggregate_by", "aggregate_type", "filter", "band_id"}
 
 
 @dataclass(frozen=True)
@@ -73,6 +73,8 @@ class Selection:
             raise ValueError("timeout must be a positive finite number")
         if not isinstance(self.window_days, int) or not 0 <= self.window_days <= 366:
             raise ValueError("window_days must be 0–366")
+        if "band_id" in self.query and (type(self.query["band_id"]) is not int or self.query["band_id"] < 0):
+            raise ValueError("band_id must be a nonnegative integer")
         start = self.query.get("date_from")
         end = self.query.get("date_to")
         if any(value is not None and not isinstance(value, str) for value in (start, end)):
@@ -108,7 +110,7 @@ class Selection:
 def load_sources(path: str | Path) -> list[Source]:
     config_path = Path(path).expanduser().resolve()
     data = json.loads(config_path.read_text(encoding="utf-8-sig"))
-    if not isinstance(data, dict) or set(data) != {"sources"}:
+    if not isinstance(data, dict) or (set(data) != {"sources"} and not (data.get("version") == 1 and set(data) <= {"version", "sources", "query", "plot", "selected_sources"})):
         raise ValueError('Configuration must contain only a "sources" array')
     if not isinstance(data["sources"], list):
         raise ValueError('"sources" must be a JSON array')
@@ -212,7 +214,10 @@ class CloudReader:
         return self.cloud.explore(collection)
 
     def rows(self, selection, remaining):
-        sql = self.cloud.build_sql(**selection.query)
+        query = {k: v for k, v in selection.query.items() if k != "band_id"}
+        sql = self.cloud.build_sql(**query)
+        if "band_id" in selection.query:
+            sql = f"SELECT * FROM ({sql}) q WHERE band_id = {selection.query['band_id']}"
         if len(sql.encode("utf-8")) >= 1000000:
             raise ValueError("Generated SQL exceeds the Cloud CLI 1 MB limit")
         for window in selection.windows():
@@ -287,8 +292,12 @@ class LocalReader:
             monitor.start()
             try:
                 # This dependency-private boundary is pinned and covered by adapter/parity tests.
-                sql, params = solution._query_sql(**selection.query)
+                query = {k: v for k, v in selection.query.items() if k != "band_id"}
+                sql, params = solution._query_sql(**query)
                 sql = sql.removesuffix(" ORDER BY p.StartDate, f.SeriesId")
+                if "band_id" in selection.query:
+                    sql = f"SELECT * FROM ({sql}) q WHERE band_id = ?"
+                    params = params + [selection.query["band_id"]]
                 result = con.execute(f"SELECT * FROM ({sql}) q LIMIT ?", params + [remaining + 1])
                 names = [column[0] for column in result.description]
                 while True:

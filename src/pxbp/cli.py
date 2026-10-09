@@ -20,6 +20,18 @@ def main(argv=None):
     serve = sub.add_parser("serve")
     serve.add_argument("--port", type=int, default=5006)
     serve.add_argument("--no-browser", action="store_true")
+    serve.add_argument("--workspace", help="Saved comparison workspace; supplies sources and view settings")
+    serve.add_argument("--cache-dir", help="Optional private Parquet query cache")
+    discover = sub.add_parser("discover", help="Create a source list from converted solution folders")
+    discover.add_argument("--root", required=True)
+    discover.add_argument("--pattern", default="*")
+    discover.add_argument("--output", required=True)
+    snapshot = sub.add_parser("snapshot", help="Query a workspace and save an offline chart snapshot")
+    snapshot.add_argument("--workspace", required=True)
+    snapshot.add_argument("--output", required=True)
+    snapshot.add_argument("--cache-dir")
+    snapshot.add_argument("--max-rows", type=int, default=1000000)
+    snapshot.add_argument("--timeout", type=float, default=600)
     explore = sub.add_parser("explore")
     explore.add_argument("--collection", required=True)
     query = sub.add_parser("query")
@@ -43,6 +55,22 @@ def main(argv=None):
     native.add_argument("--api-path", required=True, help="Installed compatible PLEXOS API folder")
     args = parser.parse_args(argv)
     try:
+        if args.command == "discover":
+            from .discovery import discover_sources
+            sources, metadata = discover_sources(args.root, args.pattern)
+            target = Path(args.output).expanduser().resolve()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                raise ValueError("Discovery output already exists; choose a new file")
+            target.write_text(json.dumps({"sources": [{"label": s.label, "path": s.path} for s in sources]}, indent=2), encoding="utf-8")
+            for item in metadata:
+                print(f"{item['label']}: models={', '.join(item['models'])}")
+            print(f"Sources saved: {target}")
+            return 0
+        if args.command == "snapshot":
+            from .snapshot import export_snapshot
+            print(f"Snapshot saved: {export_snapshot(args.workspace, args.output, args.cache_dir, args.max_rows, args.timeout)}")
+            return 0
         if args.command == "import-native-annual":
             from .native_import import import_native_annual
             spec = json.loads(Path(args.spec).read_text(encoding="utf-8-sig"))
@@ -56,11 +84,18 @@ def main(argv=None):
             from .annual_import import import_annual_zip
             print(f"Annual Parquet saved: {import_annual_zip(args.zip, args.output)}")
             return 0
+        workspace = None
+        if args.command == "serve" and args.workspace:
+            if args.config or args.solution_id or args.parquet:
+                raise ValueError("Use serve --workspace or source options, not both")
+            from .workspace import read_workspace
+            sources, workspace = read_workspace(args.workspace)
         if args.config and (args.solution_id or args.parquet):
             raise ValueError("Use --config or direct source options, not both")
-        sources = load_sources(args.config) if args.config else [Source(f"Solution {i}", value)
-                   for i, value in enumerate(args.solution_id, 1)]
-        if not args.config:
+        if workspace is None:
+            sources = load_sources(args.config) if args.config else [Source(f"Solution {i}", value)
+                       for i, value in enumerate(args.solution_id, 1)]
+        if not args.config and workspace is None:
             sources += [Source(f"Local {i}", path=str(Path(value).expanduser().resolve()))
                         for i, value in enumerate(args.parquet, 1)]
         if not sources:
@@ -91,8 +126,9 @@ def main(argv=None):
             from bokeh.application.handlers.function import FunctionHandler
             from bokeh.server.server import Server
             from .app import make_document
-            server = Server({"/": Application(FunctionHandler(lambda doc: make_document(doc, sources)))},
-                            address="127.0.0.1", port=args.port)
+            server = Server({"/": Application(FunctionHandler(lambda doc: make_document(doc, sources, workspace=workspace, cache_dir=args.cache_dir)))},
+                            address="127.0.0.1", port=args.port,
+                            allow_websocket_origin=[f"localhost:{args.port}", f"127.0.0.1:{args.port}"] if args.port else None)
             server.start()
             print(f"PLEXOS Bokeh Pivot: http://localhost:{server.port}/", flush=True)
             if not args.no_browser:

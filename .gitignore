@@ -12,4 +12,6 @@ __pycache__/
 .venv-native/
 work/
 sources.private.json
+*.private.json
+.pxbp-cache/
 PlexosParquet/

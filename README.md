@@ -7,6 +7,34 @@ You choose the data to load, then adjust the chart in your web browser.
 a Cloud account, or your own solution files to try it. These instructions are
 for **64-bit Windows**. No programming experience or Conda is required.
 
+## Compare many solutions against a baseline
+
+After installing PXBP using Steps 1–3 below, try the comparison workspace:
+
+```powershell
+.\.venv\Scripts\python.exe examples/create-pivot-demo.py
+.\pxbp.bat serve --workspace work/pivot-demo/workspace.private.json --cache-dir work/pivot-demo/cache
+```
+
+Keep PowerShell open and press **Run query** in the browser. Wait for
+**Complete. 540 result rows.** You will see 36 fictional solutions as technology
+stacks, with differences against **Baseline** and black net-total dots.
+
+In **Pivot**, change **Show** between absolute values and differences, choose
+another **Baseline**, or choose **Scenario stacks**, **Scenario areas**, or
+**Technology comparisons** from **View preset**. These changes use loaded data.
+For percentage changes or ratios, use an unstacked view.
+
+In **Workspace**, press **Prepare current configuration**, then **Download
+displayed configuration**. Reopen that JSON file using the file chooser to
+restore solutions, query, baseline, filters, chart type, colors, and layout;
+press **Run query** to load its data.
+
+See the [comparison workspace walkthrough](docs/comparison-workspaces.md) for
+your own solution folders, adding solutions, configuration options, caching,
+and offline chart snapshots. If the demo folder already exists, pass a new
+`--output` folder to the first command and use that folder in the second.
+
 ## Step 1 — Install two prerequisites
 
 If both are already installed, check them as described below and continue.
