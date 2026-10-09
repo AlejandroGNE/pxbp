@@ -1,5 +1,15 @@
 # Changes
 
+## 0.7.0 — Annual comparison reports
+
+- Add 15 annual query/plot presets and a nine-section comparison library.
+- Build live report bundles with a shared baseline, section selector,
+  scenario filters, cache reuse, row budgets, cancellation, and saved configs.
+- Export offline HTML, vector PDF, raw/pivot Parquets, and coverage audits.
+- Validate asset/year identity and reported units before converting power,
+  energy, and cost measures. Keep emission and region objects separate.
+- Add a four-solution sample and step-by-step README/report instructions.
+
 ## 0.4.1
 
 - Support explicit region-to-reporting-group crosswalks while retaining original

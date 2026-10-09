@@ -110,7 +110,7 @@ class Selection:
 def load_sources(path: str | Path) -> list[Source]:
     config_path = Path(path).expanduser().resolve()
     data = json.loads(config_path.read_text(encoding="utf-8-sig"))
-    if not isinstance(data, dict) or (set(data) != {"sources"} and not (data.get("version") == 1 and set(data) <= {"version", "sources", "query", "plot", "selected_sources"})):
+    if not isinstance(data, dict) or (set(data) != {"sources"} and not (data.get("version") == 1 and set(data) <= {"version", "sources", "query", "plot", "selected_sources", "report_preset"})):
         raise ValueError('Configuration must contain only a "sources" array')
     if not isinstance(data["sources"], list):
         raise ValueError('"sources" must be a JSON array')

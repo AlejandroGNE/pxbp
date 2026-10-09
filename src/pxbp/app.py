@@ -18,12 +18,18 @@ from .comparison import MODES, compare
 from .cache import query_cached
 from .plotting import build_charts
 from .workspace import CHART_TYPES, PRESETS, make_workspace, validate_plot
+from .report_library import PRESETS as REPORT_PRESETS, DEFAULT_SECTIONS, COMMON_FILTERS as REPORT_FILTERS, preset_query, preset_plot, prepare_annual
+from .bundles import build_bundle, make_bundle, validate_bundle, section_layout
 
 
 class PivotApp:
-    def __init__(self, doc, sources, *, workspace=None, cache_dir=None):
+    def __init__(self, doc, sources, *, workspace=None, cache_dir=None, bundle=None):
         self.doc, self.sources = doc, sources
         self.cache_dir = cache_dir
+        self.active_report = None
+        self.bundle_result = None
+        self.bundle_configuration = bundle
+        self.bundle_loading = False
         self.complete = True
         self.loading_config = False
         self.plot_overrides = {"colors": {}, "series_order": [], "scale": 1.0, "unit_label": ""}
@@ -47,6 +53,10 @@ class PivotApp:
         self.extra = TextAreaInput(title="Extra query filters (JSON: sample, model, category, parent, filter, band_id)", value="{}", rows=3)
         self.max_rows = Spinner(title="Maximum rows across all solutions", low=1, high=1000000, step=10000, value=100000)
         self.window_days = Spinner(title="Cloud window days (0 = one request; requires both dates)", low=0, high=366, value=0)
+        self.report_choice = Select(title="Annual report preset", value="custom", options=[("custom", "Custom query"), *[(k,v["title"]) for k,v in REPORT_PRESETS.items()]], width=400)
+        self.apply_report_button = Button(label="Apply report preset")
+        self.apply_report_button.on_click(self.apply_report)
+        self.report_note = Div(text="Choose an annual report to fill its query, units, and plot settings.", width=400)
         self.run_button = Button(label="Run query", button_type="primary")
         self.explore_button = Button(label="Explore collection")
         self.cancel_button = Button(label="Cancel", disabled=True)
@@ -78,6 +88,30 @@ class PivotApp:
             a.click(); URL.revokeObjectURL(url);
         """))
         self.preset.on_change("value", self._preset_changed)
+        self.bundle_sections = MultiChoice(title="Reports to include", options=[(k,v["title"]) for k,v in REPORT_PRESETS.items()], value=DEFAULT_SECTIONS, width=600)
+        self.bundle_max_rows = Spinner(title="Maximum rows across all report sections and solutions", low=1, high=1000000, value=1000000, step=10000, width=400)
+        self.bundle_baseline = Select(title="Shared report baseline", options=[s.label for s in sources], value=sources[0].label, width=400)
+        self.build_bundle_button = Button(label="Build report bundle", button_type="primary")
+        self.build_bundle_button.on_click(self.run_bundle)
+        self.bundle_section = Select(title="Display report section", options=[], value="", width=400)
+        self.bundle_scenarios = MultiChoice(title="Scenarios to display (empty = all queried)", options=[s.label for s in sources], value=[], width=600)
+        self.bundle_section.on_change("value", self._bundle_view_changed)
+        self.bundle_scenarios.on_change("value", self._bundle_view_changed)
+        self.bundle_chart = column(Div(text="Choose reports and build the bundle."), sizing_mode="stretch_width")
+        self.bundle_text = TextAreaInput(title="Report bundle configuration (private source paths/IDs)", rows=10, sizing_mode="stretch_width")
+        self.bundle_save = Button(label="Prepare report configuration")
+        self.bundle_apply = Button(label="Apply report configuration")
+        self.bundle_download = Button(label="Download report configuration")
+        self.bundle_file = FileInput(accept=".json")
+        self.bundle_save.on_click(self.save_bundle)
+        self.bundle_apply.on_click(self.load_bundle)
+        self.bundle_file.on_change("value", self._bundle_uploaded)
+        self.bundle_download.js_on_click(CustomJS(args={"text": self.bundle_text}, code="""
+            if (!text.value.trim()) return;
+            const url = URL.createObjectURL(new Blob([text.value], {type:'application/json'}));
+            const a = document.createElement('a'); a.href=url; a.download='bundle.private.json'; a.click(); URL.revokeObjectURL(url);
+        """))
+        self.bundle_status = Div(text="One baseline applies to every report section. No queries run until you build.")
         self.filters = {name: MultiChoice(title=f"Filter {name} (empty = all)", options=[])
                         for name in ("scenario", "category_name", "object_name", "timeslice_name", "property_name", "unit")}
         self.chart = column(Div(text="Run a query to view its pivot."), sizing_mode="stretch_width")
@@ -101,7 +135,7 @@ class PivotApp:
             widget.width = 195
         for widget in self.filters.values():
             widget.width = 195
-        controls = column(self.source_choice,
+        controls = column(self.source_choice, self.report_choice, self.apply_report_button, self.report_note,
                           self.collection, self.properties, row(self.phase, self.period), self.timeslice,
                           self.child, row(self.date_from, self.date_to),
                           row(self.aggregation, self.aggregate_type), self.extra,
@@ -118,7 +152,11 @@ class PivotApp:
                               TabPanel(title="Pivot", child=results),
                               TabPanel(title="Reported choices", child=self.metadata),
                               TabPanel(title="Workspace", child=column(self.config_status, self.config_file,
-                                  row(self.save_button, self.download_button), self.config_text, self.load_button, sizing_mode="stretch_width"))], sizing_mode="stretch_width")
+                                  row(self.save_button, self.download_button), self.config_text, self.load_button, sizing_mode="stretch_width")),
+                              TabPanel(title="Reports", child=column(self.bundle_status, self.bundle_sections, self.bundle_baseline, self.bundle_max_rows,
+                                  self.build_bundle_button, self.bundle_section, self.bundle_scenarios, self.bundle_chart,
+                                  Div(text="Save or edit the section order, plot settings, source list, and annual query filters below."),
+                                  self.bundle_file, row(self.bundle_save, self.bundle_download, self.bundle_apply), self.bundle_text, sizing_mode="stretch_width"))], sizing_mode="stretch_width")
         doc.add_root(column(Div(text="<h2>PLEXOS Bokeh Pivot</h2>"),
                             row(self.run_button, self.explore_button, self.cancel_button), self.status,
                             self.tabs, sizing_mode="stretch_width"))
@@ -127,6 +165,9 @@ class PivotApp:
         doc.on_session_destroyed(lambda context: self.cancel())
         if workspace:
             self.apply_workspace(workspace)
+        if bundle:
+            self.apply_bundle(bundle)
+            self.tabs.active = 4
 
     def selected_sources(self):
         sources = [s for s in self.sources if s.label in self.source_choice.value]
@@ -148,8 +189,11 @@ class PivotApp:
 
     def save_workspace(self):
         try:
-            self.config_text.value = json.dumps(make_workspace(self.sources, self.selection().query,
-                self.plot_config(), [s.label for s in self.selected_sources()]), indent=2)
+            config = make_workspace(self.sources, self.selection().query,
+                self.plot_config(), [s.label for s in self.selected_sources()])
+            if self.active_report:
+                config["report_preset"] = self.active_report
+            self.config_text.value = json.dumps(config, indent=2)
             self.config_status.text = "Ready to download. This configuration includes private source paths or IDs."
         except Exception as exc:
             self.config_status.text = "Cannot save: " + html.escape(str(exc))
@@ -172,7 +216,7 @@ class PivotApp:
                 self.config_status.text = "Cannot read configuration: " + html.escape(str(exc))
 
     def apply_workspace(self, config):
-        if not isinstance(config, dict) or config.get("version") != 1 or set(config) - {"version", "sources", "query", "plot", "selected_sources"}:
+        if not isinstance(config, dict) or config.get("version") != 1 or set(config) - {"version", "sources", "query", "plot", "selected_sources", "report_preset"}:
             raise ValueError("Expected a version 1 workspace")
         if not isinstance(config.get("sources"), list) or any(not isinstance(item, dict) or
             set(item) not in ({"label", "path"}, {"label", "solution_id"}) for item in config["sources"]):
@@ -181,6 +225,9 @@ class PivotApp:
         labels = [s.label for s in sources]
         if not labels or len(set(labels)) != len(labels):
             raise ValueError("Use unique nonempty source labels")
+        report_id = config.get("report_preset")
+        if report_id and report_id not in REPORT_PRESETS:
+            raise ValueError("Unknown saved annual preset")
         query = Selection(config["query"]).query
         plot = validate_plot(config.get("plot", {}), labels)
         selected = config.get("selected_sources", labels)
@@ -194,6 +241,12 @@ class PivotApp:
         self.loading_config = True
         try:
             self.sources = sources
+            self.active_report = report_id
+            self.report_choice.value = report_id or "custom"
+            self.bundle_baseline.options = labels
+            self.bundle_baseline.value = plot["baseline"] or labels[0]
+            self.bundle_scenarios.options = labels
+            self.bundle_configuration = None
             self.source_choice.options = labels
             self.source_choice.value = selected
             self.baseline.options = labels
@@ -219,6 +272,141 @@ class PivotApp:
             self.config_status.text = "Workspace loaded. Press Run query; no data was fetched automatically."
         finally:
             self.loading_config = False
+
+    def apply_report(self):
+        if self.job:
+            return
+        identifier = self.report_choice.value
+        if identifier == "custom":
+            self.active_report = None
+            self.report_note.text = "Custom query: reported units are preserved without library conversions."
+            return
+        try:
+            extra = json.loads(self.extra.value)
+            filters = {k:v for k,v in (self.bundle_configuration or {}).get("query_filters", {}).items() if k in REPORT_FILTERS}
+            filters.update({k:v for k,v in extra.items() if k in REPORT_FILTERS})
+            if self.phase.value in {"LT", "LTPlan"}:
+                filters["phase"] = self.phase.value
+            filters.update({k:v for k,v in {"date_from":self.date_from.value, "date_to":self.date_to.value, "timeslice":self.timeslice.value}.items() if v})
+            query = preset_query(identifier, filters)
+            plot = preset_plot(identifier, self.baseline.value, [s.label for s in self.sources],
+                {"colors":self.plot_overrides["colors"], "series_order":self.plot_overrides["series_order"], "comparison":self.comparison.value})
+            if plot["comparison"] in {"Ratio", "Percent change"}:
+                plot["chart_type"] = "Dot-Line"
+                plot["net_total"] = False
+            config = make_workspace(self.sources, query, plot, [s.label for s in self.selected_sources()])
+            config["report_preset"] = identifier
+            self.apply_workspace(config)
+            self.report_note.text = f"{REPORT_PRESETS[identifier]['title']}: annual asset validation and unit conversion are active. Press Run query."
+        except Exception as exc:
+            self.report_note.text = "Cannot apply report: " + html.escape(str(exc))
+
+    def current_bundle(self):
+        if self.bundle_configuration:
+            config = json.loads(json.dumps(self.bundle_configuration))
+            config["baseline"] = self.bundle_baseline.value
+            config["selected_sources"] = list(dict.fromkeys([self.bundle_baseline.value, *self.source_choice.value]))
+            selected_ids = set(self.bundle_sections.value)
+            config["sections"] = [s for s in config["sections"] if s["preset"] in selected_ids]
+            existing = {s["preset"] for s in config["sections"]}
+            config["sections"].extend({"id":identifier,"preset":identifier,"views":["Absolute","Difference"]}
+                for identifier in self.bundle_sections.value if identifier not in existing)
+            return validate_bundle(config)[1]
+        filters = {k:v for k,v in json.loads(self.extra.value).items() if k in REPORT_FILTERS}
+        if self.phase.value in {"LT", "LTPlan"}:
+            filters["phase"] = self.phase.value
+        filters.update({k:v for k,v in {"date_from":self.date_from.value, "date_to":self.date_to.value, "timeslice":self.timeslice.value}.items() if v})
+        selected = list(self.source_choice.value)
+        if self.bundle_baseline.value not in selected:
+            selected.insert(0, self.bundle_baseline.value)
+        if not self.bundle_sections.value:
+            raise ValueError("Choose at least one report")
+        return make_bundle(self.sources, self.bundle_baseline.value, presets=self.bundle_sections.value,
+            selected_sources=selected, query_filters=filters, colors=self.plot_overrides["colors"], series_order=self.plot_overrides["series_order"])
+
+    def save_bundle(self):
+        try:
+            self.bundle_text.value = json.dumps(self.current_bundle(), indent=2)
+            self.bundle_status.text = "Report configuration ready to download. Keep source paths and IDs private."
+        except Exception as exc:
+            self.bundle_status.text = "Cannot save report configuration: " + html.escape(str(exc))
+
+    def load_bundle(self):
+        if self.job:
+            self.bundle_status.text = "Wait for the current job before loading a report configuration."
+            return
+        try:
+            self.apply_bundle(json.loads(self.bundle_text.value))
+        except Exception as exc:
+            self.bundle_status.text = "Cannot load report configuration: " + html.escape(str(exc))
+
+    def _bundle_uploaded(self, attr, old, new):
+        if new:
+            try:
+                self.bundle_text.value = base64.b64decode(new).decode("utf-8-sig")
+                self.load_bundle()
+            except Exception as exc:
+                self.bundle_status.text = "Cannot read report configuration: " + html.escape(str(exc))
+
+    def apply_bundle(self, config):
+        sources, config = validate_bundle(config)
+        self.bundle_loading = self.loading_config = True
+        try:
+            self.sources = sources
+            labels = [s.label for s in sources]
+            self.source_choice.options = labels
+            self.source_choice.value = config["selected_sources"]
+            self.baseline.options = self.bundle_baseline.options = labels
+            self.baseline.value = self.bundle_baseline.value = config["baseline"]
+            self.bundle_scenarios.options = labels
+            self.bundle_scenarios.value = []
+            self.bundle_sections.value = list(dict.fromkeys(s["preset"] for s in config["sections"]))
+            self.bundle_configuration = config
+            self.plot_overrides.update(colors=config.get("colors", {}), series_order=config.get("series_order", []), scale=1.0, unit_label="")
+            query = config.get("query_filters", {})
+            self.extra.value = json.dumps({k:v for k,v in query.items() if k in {"sample", "model", "band_id"}})
+            self.phase.value = query.get("phase", "LTPlan")
+            self.date_from.value = query.get("date_from", "")
+            self.date_to.value = query.get("date_to", "")
+            self.timeslice.value = query.get("timeslice", "All Periods")
+            self.bundle_result = None
+            self.frame = pd.DataFrame(columns=COLUMNS)
+            self.chart.children = [Div(text="Report bundle loaded. Choose a single report preset for the Pivot tab.")]
+            self.active_report = None
+            self.report_choice.value = "custom"
+            self.bundle_chart.children = [Div(text="Report configuration loaded. Press Build report bundle.")]
+            self.bundle_status.text = "Report configuration loaded; no queries ran automatically."
+        finally:
+            self.bundle_loading = self.loading_config = False
+
+    def run_bundle(self):
+        if self.job:
+            return
+        try:
+            config = self.current_bundle()
+        except Exception as exc:
+            self.bundle_status.text = "Cannot build reports: " + html.escape(str(exc))
+            return
+        self.bundle_result = None
+        self.bundle_chart.children = [Div(text="Building annual reports…")]
+        self.bundle_status.text = "Querying selected annual report sections…"
+        self.tabs.active = 4
+        refresh = 0 not in self.cache_options.active
+        max_rows = int(self.bundle_max_rows.value)
+        def work(cancel, emit):
+            result = build_bundle(config, self.cache_dir, max_rows=max_rows, cancel=cancel,
+                progress=lambda message:emit("bundle_progress",message), refresh=refresh)
+            emit("bundle_result", result)
+        self.start_job(work, kind="bundle")
+
+    def _bundle_view_changed(self, attr, old, new):
+        if self.bundle_result and not self.bundle_loading:
+            result = next((r for r in self.bundle_result["sections"] if r["section"]["id"] == self.bundle_section.value), None)
+            if result:
+                try:
+                    self.bundle_chart.children = [section_layout(result, scenarios=self.bundle_scenarios.value)]
+                except Exception as exc:
+                    self.bundle_chart.children = [Div(text="Cannot draw this report: " + html.escape(str(exc)))]
 
     def _preset_changed(self, attr, old, new):
         if new not in PRESETS or self.loading_config:
@@ -257,6 +445,7 @@ class PivotApp:
         self.job = (cancel, events)
         self.job_kind = kind
         self.run_button.disabled = self.explore_button.disabled = True
+        self.build_bundle_button.disabled = self.apply_report_button.disabled = True
         self.cancel_button.disabled = False
 
         def emit(kind, value):
@@ -343,7 +532,18 @@ class PivotApp:
                 kind, value = events.get_nowait()
             except queue.Empty:
                 break
-            if kind == "batch":
+            if kind == "bundle_progress":
+                self.bundle_status.text = html.escape(value)
+            elif kind == "bundle_result":
+                self.bundle_result = value
+                self.bundle_loading = True
+                self.bundle_section.options = [(r["section"]["id"], r["section"]["title"]) for r in value["sections"]]
+                self.bundle_section.value = value["sections"][0]["section"]["id"]
+                self.bundle_loading = False
+                complete = sum(r["status"] == "complete" for r in value["sections"])
+                self.bundle_status.text = f"Report bundle ready. {complete}/{len(value['sections'])} sections fully available; {value['query_rows']:,} queried rows. Shared baseline: {html.escape(value['config']['baseline'])}."
+                self._bundle_view_changed(None, None, None)
+            elif kind == "batch":
                 self.frame = value.frame.copy() if self.frame.empty else pd.concat([self.frame, value.frame], ignore_index=True)
                 self.query_count += len(value.frame)
                 self.status.text = f"Received {self.query_count:,} rows; latest scenario: {html.escape(value.source.label)}. Results are provisional."
@@ -358,15 +558,30 @@ class PivotApp:
                 if kind == "done":
                     if self.job_kind == "query":
                         self.complete = True
+                        if self.active_report and not self.frame.empty:
+                            try:
+                                self.frame = prepare_annual(self.frame, self.active_report)
+                            except ValueError as exc:
+                                self.complete = False
+                                self.frame = pd.DataFrame(columns=COLUMNS)
+                                self.chart.children = [Div(text="Annual report validation failed: " + html.escape(str(exc)))]
+                                self.status.text = "Annual report validation failed: " + html.escape(str(exc))
                     changed = self.job_kind == "query"
-                    self.status.text = (f"Complete. {self.query_count:,} result rows."
-                                        if self.job_kind == "query" else "Reported choices loaded.")
+                    if self.job_kind == "query" and self.complete:
+                        self.status.text = f"Complete. {self.query_count:,} result rows."
+                    elif self.job_kind == "explore":
+                        self.status.text = "Reported choices loaded."
+                    elif self.job_kind == "bundle":
+                        self.status.text = "Annual report bundle finished; inspect section coverage in Reports."
                 else:
                     if self.job_kind == "query":
                         self.complete = False
                     self.status.text = "Stopped: " + html.escape(str(value)) + ". Query results may be incomplete."
+                if kind != "done" and self.job_kind == "bundle":
+                    self.bundle_status.text = self.status.text
                 self.job = None
                 self.run_button.disabled = self.explore_button.disabled = False
+                self.build_bundle_button.disabled = self.apply_report_button.disabled = False
                 self.cancel_button.disabled = True
                 break
         if changed:
@@ -381,11 +596,13 @@ class PivotApp:
     def render(self):
         if self.frame.empty:
             return
-        if self.comparison.value != "Absolute" and not self.complete:
+        if (self.comparison.value != "Absolute" or self.active_report) and not self.complete:
             self.chart.children = [Div(text="Comparisons wait for a complete query; partial results cannot establish a baseline.")]
             return
         try:
             plot = self.plot_config()
+            if self.active_report:
+                plot = preset_plot(self.active_report, self.baseline.value, [s.label for s in self.sources], plot)
             filters = {k: v for k, v in plot["filters"].items() if k != "scenario"}
             table = pivot(self.frame, x=plot["x"], series=plot["series"], operation=plot["operation"],
                           filters=filters, facet=plot["facet"])
@@ -411,5 +628,5 @@ class PivotApp:
             self.pivot_note.text = "Adjust comparison, chart, facets, or filters."
 
 
-def make_document(doc, sources, *, workspace=None, cache_dir=None):
-    return PivotApp(doc, sources, workspace=workspace, cache_dir=cache_dir)
+def make_document(doc, sources, *, workspace=None, cache_dir=None, bundle=None):
+    return PivotApp(doc, sources, workspace=workspace, cache_dir=cache_dir, bundle=bundle)

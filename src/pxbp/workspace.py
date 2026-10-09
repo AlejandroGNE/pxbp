@@ -57,10 +57,13 @@ def validate_plot(plot, labels):
 def read_workspace(path):
     path = Path(path).expanduser().resolve()
     config = json.loads(path.read_text(encoding="utf-8-sig"))
-    allowed = {"version", "sources", "query", "plot", "selected_sources"}
+    allowed = {"version", "sources", "query", "plot", "selected_sources", "report_preset"}
     if not isinstance(config, dict) or set(config) - allowed or config.get("version") != 1:
         raise ValueError("Workspace needs version 1 and sources, query, plot settings")
     sources = load_sources(path)
+    if config.get("report_preset"):
+        from .report_library import get_preset
+        get_preset(config["report_preset"])
     selection = Selection(config.get("query", {}))
     labels = [s.label for s in sources]
     plot = validate_plot(config.get("plot", {}), labels)

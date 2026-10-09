@@ -140,7 +140,7 @@ def build_charts(table, plot, *, panel_limit=120, series_limit=100):
                 "status": ["net of selected complete stack"]*len(xs)})
             chart.scatter(x="x", y="y", source=net_source, color="#222222", size=7, legend_label="Net total")
         chart.add_tools(HoverTool(tooltips=[("Series", "@series"), ("Value", "@value{0,0.000}"),
-            ("Absolute (reported unit)", "@absolute{0,0.000}"), ("Baseline (reported unit)", "@baseline{0,0.000}"), ("Model", "@model"), ("Status", "@status")]))
+            (f"Absolute ({panel.unit.iloc[0]})", "@absolute{0,0.000}"), (f"Baseline ({panel.unit.iloc[0]})", "@baseline{0,0.000}"), ("Model", "@model"), ("Status", "@status")]))
         if groups:
             chart.legend.click_policy = "hide"
             chart.legend.label_text_font_size = "9px"

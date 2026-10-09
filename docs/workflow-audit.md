@@ -117,3 +117,25 @@ instead of launching `start python` through PATH.
 See [standard Python environments](python-environments.md) for the updated
 setup, launch and report troubleshooting steps. The earlier legacy environment
 blocker is historical; selected classic features are now exercised successfully.
+
+
+## Annual comparison library (0.7.0)
+
+- The public regression suite passes 65 tests. New checks query generated
+  Parquet solutions through the real local adapter, validate units and annual
+  asset identity, verify baseline deltas, exercise live configuration round
+  trips, and export HTML/PDF/Parquet audits.
+- Missing measurements and missing baseline data retain explicit coverage
+  status; unavailable differences do not become zero. Cancellation and a
+  shared row budget stop incomplete jobs.
+- All 15 presets return compatible annual measurements in a private
+  multi-solution validation set. The nine core reports also match independent
+  SQL queries against original input tables, including unit conversion and
+  differences. Private fixtures and model labels remain outside this repo.
+- A headless browser exercises report building, saved configurations,
+  section/scenario selection, a single annual preset, and the offline section
+  selector. Representative PDF pages are rendered and inspected, and all
+  pages contain readable text.
+- The new library is validated on local Parquets. Cloud uses the existing
+  query adapter; these new presets have not been independently exercised
+  against a live Cloud service in this validation pass.

@@ -7,6 +7,44 @@ You choose the data to load, then adjust the chart in your web browser.
 a Cloud account, or your own solution files to try it. These instructions are
 for **64-bit Windows**. No programming experience or Conda is required.
 
+## Build a library of annual comparison reports
+
+After completing Steps 1–3 below, try nine annual reports with four sample
+solutions and one shared baseline. Stop an existing viewer with **Ctrl+C**,
+then paste these commands into PowerShell in your `pxbp` folder:
+
+```powershell
+.\.venv\Scripts\python.exe examples/create-report-library-demo.py
+.\pxbp.bat serve --bundle work/report-library-demo/bundle.private.json --cache-dir work/report-library-demo/cache
+```
+
+1. Keep PowerShell open. The browser starts in **Reports**.
+2. Click **Build report bundle**. Wait for **9/9 sections fully available;
+   216 queried rows**.
+3. Choose a **Display report section**. You can view generation, installed/new
+   capacity, battery power/energy capacity, emissions, curtailment, and costs.
+   Absolute values and differences appear side by side, with **Baseline**
+   shared by every section. Capacity stacks include black net-total dots.
+4. Choose **Scenarios to display** to simplify the charts. Leave it empty to
+   see all cases. These display changes do not query again.
+5. To change the baseline or included reports, change the controls and click
+   **Build report bundle** again. Completed cached queries are reused.
+6. Click **Prepare report configuration**, then **Download report
+   configuration**. Reopen that file using the Reports file chooser, then build.
+
+To create an offline report and printable PDF, stop the viewer with Ctrl+C:
+
+```powershell
+.\pxbp.bat bundle --spec work/report-library-demo/bundle.private.json --output work/annual-report --cache-dir work/report-library-demo/cache
+Start-Process work\annual-report\reports.html
+Start-Process work\annual-report\reports.pdf
+```
+
+Use a new output folder if one already exists. To reopen an existing sample,
+skip its creation command. See the [annual report library guide](docs/annual-library.md)
+for your own solutions, all 15 report presets, single-report queries,
+configurable chart types, colors, filters, and audit exports.
+
 ## Compare many solutions against a baseline
 
 After installing PXBP using Steps 1–3 below, try the comparison workspace:
@@ -319,8 +357,8 @@ choose a new output name; existing files are never overwritten.
 
 For your own solutions, follow the [capacity report guide](docs/reports.md).
 It explains the required asset mapping, per-unit MW ratings, exclusions and
-query selections. This first report covers annual new capacity; the other
-report types are still under development.
+query selections. This asset-mapped report covers annual new capacity; the guides below cover
+additional properties and the annual comparison library.
 
 ## Installed capacity, costs, energy and flowgates
 

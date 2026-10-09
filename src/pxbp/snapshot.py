@@ -31,6 +31,10 @@ def export_snapshot(workspace_path, output, cache_dir=None, max_rows=1000000, ti
         raise ValueError("No query results; no snapshot was published")
     frame = pd.concat(frames, ignore_index=True)
     plot = workspace["plot"]
+    if workspace.get("report_preset"):
+        from .report_library import prepare_annual, preset_plot
+        frame = prepare_annual(frame, workspace["report_preset"])
+        plot = preset_plot(workspace["report_preset"], plot["baseline"], [s.label for s in sources], plot)
     table = pivot(frame, x=plot["x"], series=plot["series"], operation=plot["operation"],
         filters={k: v for k, v in plot["filters"].items() if k != "scenario"}, facet=plot["facet"])
     table = compare(table, plot["baseline"], plot["comparison"], visible=plot["filters"].get("scenario"))
