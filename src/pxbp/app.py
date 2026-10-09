@@ -23,7 +23,7 @@ from .bundles import build_bundle, make_bundle, validate_bundle, section_layout
 
 
 class PivotApp:
-    def __init__(self, doc, sources, *, workspace=None, cache_dir=None, bundle=None):
+    def __init__(self, doc, sources, *, workspace=None, cache_dir=None, bundle=None, analysis=None):
         self.doc, self.sources = doc, sources
         self.cache_dir = cache_dir
         self.active_report = None
@@ -148,6 +148,8 @@ class PivotApp:
                          row(self.facet, self.columns), self.display_options,
                          row(*filters[:2]), row(*filters[2:4]), row(*filters[4:]), self.pivot_note, self.chart, self.table,
                          sizing_mode="stretch_width")
+        from .analytics_ui import AnalyticsPanel
+        self.analytics = AnalyticsPanel(self, analysis)
         self.tabs = Tabs(tabs=[TabPanel(title="Query", child=controls),
                               TabPanel(title="Pivot", child=results),
                               TabPanel(title="Reported choices", child=self.metadata),
@@ -156,7 +158,8 @@ class PivotApp:
                               TabPanel(title="Reports", child=column(self.bundle_status, self.bundle_sections, self.bundle_baseline, self.bundle_max_rows,
                                   self.build_bundle_button, self.bundle_section, self.bundle_scenarios, self.bundle_chart,
                                   Div(text="Save or edit the section order, plot settings, source list, and annual query filters below."),
-                                  self.bundle_file, row(self.bundle_save, self.bundle_download, self.bundle_apply), self.bundle_text, sizing_mode="stretch_width"))], sizing_mode="stretch_width")
+                                  self.bundle_file, row(self.bundle_save, self.bundle_download, self.bundle_apply), self.bundle_text, sizing_mode="stretch_width")),
+                              TabPanel(title="Analytics", child=self.analytics.layout)], sizing_mode="stretch_width")
         doc.add_root(column(Div(text="<h2>PLEXOS Bokeh Pivot</h2>"),
                             row(self.run_button, self.explore_button, self.cancel_button), self.status,
                             self.tabs, sizing_mode="stretch_width"))
@@ -168,6 +171,8 @@ class PivotApp:
         if bundle:
             self.apply_bundle(bundle)
             self.tabs.active = 4
+        if analysis:
+            self.tabs.active = 5
 
     def selected_sources(self):
         sources = [s for s in self.sources if s.label in self.source_choice.value]
@@ -446,6 +451,7 @@ class PivotApp:
         self.job_kind = kind
         self.run_button.disabled = self.explore_button.disabled = True
         self.build_bundle_button.disabled = self.apply_report_button.disabled = True
+        self.analytics.busy(True)
         self.cancel_button.disabled = False
 
         def emit(kind, value):
@@ -532,7 +538,11 @@ class PivotApp:
                 kind, value = events.get_nowait()
             except queue.Empty:
                 break
-            if kind == "bundle_progress":
+            if kind == "analysis_progress":
+                self.analytics.message(value)
+            elif kind == "analysis_result":
+                self.analytics.ready(value)
+            elif kind == "bundle_progress":
                 self.bundle_status.text = html.escape(value)
             elif kind == "bundle_result":
                 self.bundle_result = value
@@ -571,6 +581,8 @@ class PivotApp:
                         self.status.text = f"Complete. {self.query_count:,} result rows."
                     elif self.job_kind == "explore":
                         self.status.text = "Reported choices loaded."
+                    elif self.job_kind == "analysis":
+                        self.status.text = "Analysis finished; inspect coverage in Analytics."
                     elif self.job_kind == "bundle":
                         self.status.text = "Annual report bundle finished; inspect section coverage in Reports."
                 else:
@@ -579,7 +591,10 @@ class PivotApp:
                     self.status.text = "Stopped: " + html.escape(str(value)) + ". Query results may be incomplete."
                 if kind != "done" and self.job_kind == "bundle":
                     self.bundle_status.text = self.status.text
+                if kind != "done" and self.job_kind == "analysis":
+                    self.analytics.message(self.status.text)
                 self.job = None
+                self.analytics.busy(False)
                 self.run_button.disabled = self.explore_button.disabled = False
                 self.build_bundle_button.disabled = self.apply_report_button.disabled = False
                 self.cancel_button.disabled = True
@@ -628,5 +643,5 @@ class PivotApp:
             self.pivot_note.text = "Adjust comparison, chart, facets, or filters."
 
 
-def make_document(doc, sources, *, workspace=None, cache_dir=None, bundle=None):
-    return PivotApp(doc, sources, workspace=workspace, cache_dir=cache_dir, bundle=bundle)
+def make_document(doc, sources, *, workspace=None, cache_dir=None, bundle=None, analysis=None):
+    return PivotApp(doc, sources, workspace=workspace, cache_dir=cache_dir, bundle=bundle, analysis=analysis)

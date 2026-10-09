@@ -1,5 +1,18 @@
 # Changes
 
+## 0.8.0 — Analytical workspaces
+
+- Add 79 annual, interval, monthly, duration, heatmap, profile, distribution,
+  statistics, and calculated report recipes with shared scenario baselines.
+- Add a GUI report editor for titles, charts, comparison views, section order,
+  duplication, colors, series order, and safe calculated annual measures.
+- Calculate physical energy and weighted averages from explicit durations;
+  retain partial coverage, missing operands, native mass units, and zero-denominator status.
+- Reuse unique measurements and complete cached queries within explicit row budgets.
+- Export lazy offline HTML, bookmarked vector PDF, queried/calculated Parquets,
+  configurations, and calculation/coverage audits.
+- Add fictional multi-solution data and a beginner walkthrough.
+
 ## 0.7.0 â€” Annual comparison reports
 
 - Add 15 annual query/plot presets and a nine-section comparison library.

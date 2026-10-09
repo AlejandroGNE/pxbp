@@ -23,6 +23,7 @@ def _text(pdf, text, x, y, width=95, size=9):
 def _chart(pdf, table, plot, rect, title, limits=None):
     x, y, width, height = rect
     series = plot["series"]
+    axis = plot["x"]
     stacked = plot["chart_type"] in {"Stacked Bar", "Stacked Area"}
     pdf.setFillColor(HexColor("#111827")); pdf.setFont("Helvetica-Bold", 11)
     pdf.drawString(x, y+height+18, title)
@@ -33,8 +34,8 @@ def _chart(pdf, table, plot, rect, title, limits=None):
     groups = list(table.groupby(series_keys, sort=False, dropna=False))
     order = {name:i for i,name in enumerate(plot["series_order"])}
     groups.sort(key=lambda pair:(order.get(str(pair[0][0] if isinstance(pair[0],tuple) else pair[0]),9999),str(pair[0])))
-    years = sorted(set(table.year))
-    values = [g.set_index("year").reindex(years).value.to_numpy(dtype=float) for _,g in groups]
+    years = sorted(set(table[axis]))
+    values = [g.set_index(axis).reindex(years).value.to_numpy(dtype=float) for _,g in groups]
     complete = np.all(np.isfinite(values),axis=0)
     positive = np.sum([np.where(v>0,v,0) for v in values],axis=0)
     negative = np.sum([np.where(v<0,v,0) for v in values],axis=0)
@@ -47,11 +48,18 @@ def _chart(pdf, table, plot, rect, title, limits=None):
     if low<0:low-=span*.04
     if high>0:high+=span*.04
     span=high-low
-    px=lambda index:x+(index+.5)*width/len(years)
+    continuous = axis in {"start_date","month_date","exceedance","metric_x"}
+    if continuous and len(years)>1:
+        coordinates=np.asarray([v.timestamp() if hasattr(v,"timestamp") else float(v) for v in years])
+        axis_span=coordinates[-1]-coordinates[0]
+        pad=width/len(years)/2 if plot["chart_type"] in {"Bar","Stacked Bar"} else min(width*.05,width/len(years)/2)
+        px=lambda index:x+pad+(coordinates[index]-coordinates[0])/axis_span*(width-2*pad)
+    else:
+        px=lambda index:x+(index+.5)*width/len(years)
     py=lambda value:y+(value-low)/span*height
     pdf.setLineWidth(.5)
     ticks=[low+span*tick/4 for tick in range(5)]
-    ticks=sorted([value for value in ticks if abs(value)>span*.08]+[0.0])
+    ticks=sorted([value for value in ticks if abs(value)>span*.08]+([0.0] if low<=0<=high else []))
     for value in ticks:
         pdf.setStrokeColor(HexColor("#D1D5DB"));pdf.line(x,py(value),x+width,py(value))
         pdf.setFillColor(HexColor("#374151"));pdf.setFont("Helvetica",7)
@@ -90,13 +98,24 @@ def _chart(pdf, table, plot, rect, title, limits=None):
                 previous=coords
     if stacked and plot["net_total"]:
         pdf.setFillColor(HexColor("#222222"))
-        for index,value in enumerate(np.sum(np.nan_to_num(values),axis=0)):
-            if complete[index]:pdf.circle(px(index),py(value),2.5,fill=1,stroke=0)
-        legend.append(("Net total","#222222"))
+        total=np.sum(np.nan_to_num(values),axis=0)
+        dense=axis=="start_date" and len(years)>72
+        if dense:
+            pdf.setStrokeColor(HexColor("#222222"));pdf.setLineWidth(.9);previous=None
+            for index,value in enumerate(total):
+                if not complete[index]:previous=None;continue
+                coords=(px(index),py(value))
+                if previous:pdf.line(*previous,*coords)
+                previous=coords
+        for index,value in enumerate(total):
+            if complete[index] and (not dense or index%max(1,len(years)//48)==0):pdf.circle(px(index),py(value),1.3 if dense else 2.5,fill=1,stroke=0)
+        legend.append(("Net total (line, spaced dots)" if dense else "Net total","#222222"))
     pdf.setFillColor(HexColor("#374151"));pdf.setFont("Helvetica",7)
     for index,year in enumerate(years):
-        if index%max(1,len(years)//8)==0 or index==len(years)-1:pdf.drawCentredString(px(index),y-12,str(year))
-    unit="%" if plot["comparison"]=="Percent change" else "ratio" if plot["comparison"]=="Ratio" else str(table.unit.iloc[0])
+        if index%max(1,len(years)//(4 if axis in {"start_date","month_date"} else 8))==0 or index==len(years)-1:
+            label=year.strftime("%m-%d %H:%M") if axis=="start_date" else year.strftime("%Y-%m") if axis=="month_date" else f"{year:.3g}" if isinstance(year,float) else str(year)
+            pdf.drawCentredString(px(index),y-12,label)
+    unit="%" if plot["comparison"]=="Percent change" else "ratio" if plot["comparison"]=="Ratio" else "percentage points" if plot["comparison"]=="Difference" and str(table.unit.iloc[0])=="%" else str(table.unit.iloc[0])
     pdf.setFont("Helvetica",8);pdf.drawString(x,y-27,unit)
     if (~complete).any() and stacked:
         pdf.drawString(x,y-40,f"{int((~complete).sum())} incomplete stack positions omitted")

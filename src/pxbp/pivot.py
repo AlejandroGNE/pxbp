@@ -5,7 +5,7 @@ import pandas as pd
 
 IDENTITY = ["collection_name", "class_name", "property_name", "unit", "phase_name", "period_type_name", "timeslice_name",
             "sample_name", "model_name", "band_id"]
-AXES = ["start_date", "year", "month", "day", "hour", "object_name", "category_name", "scenario"]
+AXES = ["start_date", "year", "month", "day", "hour", "object_name", "category_name", "scenario", "month_date", "exceedance", "metric_x"]
 SERIES = ["scenario", "category_name", "object_name", "property_name", "unit", "timeslice_name"]
 
 

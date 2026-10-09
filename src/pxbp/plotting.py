@@ -20,6 +20,8 @@ COLORS = {**TECHNOLOGY_COLORS, "upv": "#FFC903", "wind-ons": "#00B6EF", "wind-of
 def color_for(label, overrides):
     if label in overrides:
         return overrides[label]
+    if str(label).startswith(("Charge | ", "Discharge | ")):
+        return color_for(str(label).split(" | ",1)[1],overrides)
     if label in COLORS:
         return COLORS[label]
     # Stable across filtering, ordering, restarts, and panels; no color cycling.
@@ -55,19 +57,21 @@ def build_charts(table, plot, *, panel_limit=120, series_limit=100):
         models = sorted(set(panel.model_name)) if "model_name" in panel else []
         if len(models) == 1 and models[0] and models[0] not in title:
             title += f" | model: {models[0]}"
-        categorical = x != "start_date"
+        temporal = x in {"start_date", "month_date"}
+        numeric = x in {"exceedance", "metric_x"}
+        categorical = not temporal and not numeric
         xs = sorted(panel[x].drop_duplicates().tolist())
         if not xs:
             continue
         labels = [str(v) for v in xs]
-        kwargs = {"x_range": labels} if categorical else {"x_axis_type": "datetime"}
-        if not categorical and len(xs) == 1:
+        kwargs = {"x_range": labels} if categorical else {"x_axis_type": "datetime"} if temporal else {}
+        if temporal and len(xs) == 1:
             stamp = pd.Timestamp(xs[0]).value / 1e6
             kwargs["x_range"] = (stamp - 86400000, stamp + 86400000)
         chart = figure(title=title or "Values", height=350, width=450,
                        tools="pan,wheel_zoom,box_zoom,reset,save", **kwargs)
-        chart.xaxis.axis_label = x
-        suffix = "%" if plot["comparison"] == "Percent change" else "ratio" if plot["comparison"] == "Ratio" else (plot.get("unit_label") or str(panel.unit.iloc[0]))
+        chart.xaxis.axis_label = "Exceedance (%)" if x == "exceedance" else "Month" if x == "month_date" else "Price ($/MWh)" if x == "metric_x" else x
+        suffix = "%" if plot["comparison"] == "Percent change" else "ratio" if plot["comparison"] == "Ratio" else "percentage points" if plot["comparison"] == "Difference" and str(panel.unit.iloc[0]) == "%" else (plot.get("unit_label") or str(panel.unit.iloc[0]))
         chart.yaxis.axis_label = f"{plot['comparison']} ({suffix})" + (f" × {plot['scale']:g}" if scale != 1 and not plot.get("unit_label") else "")
         if categorical:
             chart.xaxis.major_label_orientation = .8
@@ -86,7 +90,7 @@ def build_charts(table, plot, *, panel_limit=120, series_limit=100):
         net = np.zeros(len(xs))
         absolute_net, baseline_net = np.zeros(len(xs)), np.zeros(len(xs))
         complete = np.ones(len(xs), dtype=bool)
-        width = .8 if categorical else (min(np.diff([pd.Timestamp(v).value / 1e6 for v in xs])) * .8 if len(xs) > 1 else 86400000 * .8)
+        width = .8 if categorical else (min(np.diff(xs)) * .8 if len(xs) > 1 else 1) if numeric else (min(np.diff([pd.Timestamp(v).value / 1e6 for v in xs])) * .8 if len(xs) > 1 else 86400000 * .8)
         for index, (key, group) in enumerate(groups):
             key = key if isinstance(key, tuple) else (key,)
             legend = " | ".join(str(v) for v in key)
@@ -118,11 +122,11 @@ def build_charts(table, plot, *, panel_limit=120, series_limit=100):
                 if categorical:
                     source.data["x"] = [(v, (index - (len(groups)-1)/2) * .8 / len(groups)) for v in labels]
                 else:
-                    source.data["x"] = [pd.Timestamp(v).value / 1e6 + (index - (len(groups)-1)/2) * width / len(groups) for v in xs]
+                    source.data["x"] = [(float(v) if numeric else pd.Timestamp(v).value / 1e6) + (index - (len(groups)-1)/2) * width / len(groups) for v in xs]
                 chart.vbar(x="x", top="value", width=width / len(groups), source=source, color=color, legend_label=legend)
             else:
                 if plot["chart_type"] in {"Line", "Dot-Line"}:
-                    chart.line(x="x", y="value", source=source, color=color, line_width=2, legend_label=legend)
+                    chart.line(x="x", y="value", source=source, color=color, line_width=3 if str(key[0])==plot["baseline"] else 2, legend_label=legend)
                 if plot["chart_type"] in {"Dot", "Dot-Line"} or len(xs) == 1:
                     chart.scatter(x="x", y="value", source=source, color=color, size=5, legend_label=legend)
         if stacked and (~complete).any():

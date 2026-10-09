@@ -20,6 +20,7 @@ def main(argv=None):
     serve = sub.add_parser("serve")
     serve.add_argument("--port", type=int, default=5006)
     serve.add_argument("--no-browser", action="store_true")
+    serve.add_argument("--analysis", help="Saved analytical report workspace")
     serve.add_argument("--bundle", help="Annual report bundle configuration")
     serve.add_argument("--workspace", help="Saved comparison workspace; supplies sources and view settings")
     serve.add_argument("--cache-dir", help="Optional private Parquet query cache")
@@ -33,6 +34,18 @@ def main(argv=None):
     snapshot.add_argument("--cache-dir")
     snapshot.add_argument("--max-rows", type=int, default=1000000)
     snapshot.add_argument("--timeout", type=float, default=600)
+    sub.add_parser("analysis-presets", help="List analytical recipes")
+    ac = sub.add_parser("analysis-config", help="Create analysis configuration from an annual bundle or workspace")
+    origin = ac.add_mutually_exclusive_group(required=True)
+    origin.add_argument("--bundle"); origin.add_argument("--workspace")
+    ac.add_argument("--output", required=True)
+    ac.add_argument("--from", dest="date_from", required=True)
+    ac.add_argument("--to", dest="date_to", required=True)
+    ac.add_argument("--presets", help="Comma-separated recipes or all")
+    ae = sub.add_parser("analysis", help="Export offline analytical HTML, PDF, and audited Parquets")
+    ae.add_argument("--spec", required=True); ae.add_argument("--output", required=True)
+    ae.add_argument("--cache-dir"); ae.add_argument("--max-rows", type=int, default=2000000)
+    ae.add_argument("--timeout", type=float, default=600)
     sub.add_parser("presets", help="List annual report presets")
     bundle_config = sub.add_parser("bundle-config", help="Create an annual bundle from an existing workspace")
     bundle_config.add_argument("--workspace", required=True)
@@ -67,6 +80,32 @@ def main(argv=None):
     native.add_argument("--api-path", required=True, help="Installed compatible PLEXOS API folder")
     args = parser.parse_args(argv)
     try:
+        if args.command == "analysis-presets":
+            from .analytics_catalog import RECIPES
+            for name,r in RECIPES.items():print(f"{name:30} {r['resolution']:12} {r['title']}")
+            return 0
+        if args.command == "analysis-config":
+            from .analytics import make_analysis
+            from .analytics_catalog import RECIPES
+            if args.bundle:
+                from .bundles import read_bundle
+                sources,old=read_bundle(args.bundle);baseline=old["baseline"];style=old
+                filters={k:v for k,v in old["query_filters"].items() if k in {"phase","sample","model","band_id","timeslice"}}
+            else:
+                from .workspace import read_workspace
+                sources,old=read_workspace(args.workspace);baseline=old["plot"]["baseline"] or sources[0].label;style=old["plot"]
+                filters={k:v for k,v in old["query"].items() if k in {"phase","sample","model","band_id","timeslice"}}
+            recipes=list(RECIPES) if args.presets=="all" else [k.strip() for k in args.presets.split(",") if k.strip()] if args.presets else None
+            cfg=make_analysis(sources,baseline,selected_sources=old["selected_sources"],date_from=args.date_from,date_to=args.date_to,
+                filters=filters,colors=style.get("colors",{}),series_order=style.get("series_order",[]),recipes=recipes)
+            target=Path(args.output).resolve()
+            if target.exists():raise ValueError("Analysis configuration output already exists")
+            target.parent.mkdir(parents=True,exist_ok=True);target.write_text(json.dumps(cfg,indent=2),encoding="utf-8")
+            print(f"Analysis configuration saved: {target}");return 0
+        if args.command == "analysis":
+            from .analytics import export_analysis
+            print(f"Analysis saved: {export_analysis(args.spec,args.output,args.cache_dir,max_rows=args.max_rows,timeout=args.timeout,progress=lambda m:print(m,flush=True))}")
+            return 0
         if args.command == "presets":
             from .report_library import PRESETS
             for identifier, preset in PRESETS.items():
@@ -122,7 +161,12 @@ def main(argv=None):
             from .annual_import import import_annual_zip
             print(f"Annual Parquet saved: {import_annual_zip(args.zip, args.output)}")
             return 0
-        workspace, bundle = None, None
+        workspace, bundle, analysis = None, None, None
+        if args.command == "serve" and args.analysis:
+            if args.workspace or args.bundle or args.config or args.solution_id or args.parquet:
+                raise ValueError("Use serve --analysis or other workspace/source options, not both")
+            from .analytics import read_analysis
+            sources,analysis=read_analysis(args.analysis)
         if args.command == "serve" and args.bundle:
             if args.workspace or args.config or args.solution_id or args.parquet:
                 raise ValueError("Use serve --bundle or workspace/source options, not both")
@@ -135,10 +179,10 @@ def main(argv=None):
             sources, workspace = read_workspace(args.workspace)
         if args.config and (args.solution_id or args.parquet):
             raise ValueError("Use --config or direct source options, not both")
-        if workspace is None and bundle is None:
+        if workspace is None and bundle is None and analysis is None:
             sources = load_sources(args.config) if args.config else [Source(f"Solution {i}", value)
                        for i, value in enumerate(args.solution_id, 1)]
-        if not args.config and workspace is None and bundle is None:
+        if not args.config and workspace is None and bundle is None and analysis is None:
             sources += [Source(f"Local {i}", path=str(Path(value).expanduser().resolve()))
                         for i, value in enumerate(args.parquet, 1)]
         if not sources:
@@ -169,7 +213,7 @@ def main(argv=None):
             from bokeh.application.handlers.function import FunctionHandler
             from bokeh.server.server import Server
             from .app import make_document
-            server = Server({"/": Application(FunctionHandler(lambda doc: make_document(doc, sources, workspace=workspace, cache_dir=args.cache_dir, bundle=bundle)))},
+            server = Server({"/": Application(FunctionHandler(lambda doc: make_document(doc, sources, workspace=workspace, cache_dir=args.cache_dir, bundle=bundle, analysis=analysis)))},
                             address="127.0.0.1", port=args.port,
                             allow_websocket_origin=[f"localhost:{args.port}", f"127.0.0.1:{args.port}"] if args.port else None)
             server.start()

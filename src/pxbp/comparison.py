@@ -20,7 +20,7 @@ def compare(table, baseline, mode="Absolute", *, visible=None):
     result["absolute_value"] = result["value"]
     if mode == "Absolute":
         result["baseline_value"] = np.nan
-        result["comparison_status"] = "absolute"
+        result["comparison_status"] = np.where(result.value.notna(), "absolute", "undefined metric")
         return result if visible is None else result[result.scenario.isin(visible)]
     if baseline not in set(table.scenario):
         raise ValueError("The baseline is not loaded. Include it in the query.")
@@ -40,6 +40,9 @@ def compare(table, baseline, mode="Absolute", *, visible=None):
         merged["absolute_value"] = merged["value"]
         merged["comparison_status"] = merged["_merge"].astype(str).map(
             {"both": "matched", "left_only": "missing baseline", "right_only": "missing scenario"})
+        matched = merged.comparison_status.eq("matched")
+        merged.loc[matched & merged.value.isna(), "comparison_status"] = "undefined scenario"
+        merged.loc[matched & merged.baseline_value.isna(), "comparison_status"] = "undefined baseline"
         matched = merged.comparison_status.eq("matched")
         delta = merged["value"] - merged.baseline_value
         if mode == "Difference":
